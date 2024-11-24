@@ -1,3 +1,0 @@
-/home/alex/Desktop/workspace/phySimTools/build/CMakeFiles/phsSimTools.dir
-/home/alex/Desktop/workspace/phySimTools/build/CMakeFiles/edit_cache.dir
-/home/alex/Desktop/workspace/phySimTools/build/CMakeFiles/rebuild_cache.dir
