@@ -1,5 +1,6 @@
-#include<iostream>
+#include "phisi_app.hpp"
+#include "phisi_vulkan.hpp"
 
 int main() {
-  std::cout << "Hello, World!" << std::endl;
+    return run_app();  
 }
