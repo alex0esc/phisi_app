@@ -1,13 +1,13 @@
 #include "phisi_vulkan.hpp"
 #include "GLFW/glfw3.h"
 #include <vector>
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
-namespace phisiApp {
-  
-  vk::UniqueInstance createVkInstance() {
+namespace phisi_app {
+    
+  void VulkanContext::createVkInstance() {
     vk::ApplicationInfo app_info(
       "Phisi App", VK_MAKE_VERSION(1, 0, 0), 
       "None", VK_MAKE_VERSION(1, 0, 0), 
@@ -25,21 +25,24 @@ namespace phisiApp {
     layers.push_back("VK_LAYER_KHRONOS_validation");
     #endif
     
-    vk::InstanceCreateInfo create_info({}, &app_info, layers.size(), layers.data(), extensions.size(), extensions.data());
-    return vk::createInstanceUnique(create_info);
+    vk::InstanceCreateInfo create_info(
+      vk::InstanceCreateFlags(), &app_info, 
+      layers.size(), layers.data(), 
+      extensions.size(), extensions.data());
+    m_instance = vk::createInstanceUnique(create_info);
   } 
 
-  VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+  #ifdef DEBUG
+  VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallbackFunc(
     VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity, 
-    VkDebugUtilsMessageTypeFlagBitsEXT msg_type, 
+    VkDebugUtilsMessageTypeFlagsEXT msg_type, 
     const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data, 
     void* p_user_data) {
     
-    return VK_FALSE;
+    return false;
   }
-  
-    
-  vk::DebugUtilsMessengerEXT createDebugMessenger() {
+   
+  void VulkanContext::createDebugMessenger() {    
     vk::DebugUtilsMessengerCreateInfoEXT create_info(
       vk::DebugUtilsMessengerCreateFlagsEXT(), 
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | 
@@ -47,7 +50,19 @@ namespace phisiApp {
       vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
       vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
       vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
-      debugCallback, nullptr);
+      (vk::PFN_DebugUtilsMessengerCallbackEXT) debugCallbackFunc);
+    vk::detail::DispatchLoaderDynamic dldi(m_instance.get(), vkGetInstanceProcAddr);
+    m_debug_messenger = m_instance.get().createDebugUtilsMessengerEXTUnique(create_info, nullptr, dldi);
   }
+  #endif
   
+  
+  bool VulkanContext::init() {
+    createVkInstance();
+    #ifdef DEBUG 
+    createDebugMessenger();
+    #endif
+    
+    return true;
+  }  
 }

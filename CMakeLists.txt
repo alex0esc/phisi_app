@@ -6,12 +6,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DDEBUG)  # Define a macro for Debug builds
-else()
-    add_definitions(-DRELEASE)  # Define a different macro for Release builds
-endif()
-
 #C++ Standart
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -24,12 +18,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/release)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 #source files
-file(GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-file(GLOB IMGUI_CPPS "${CMAKE_SOURCE_DIR}/imgui/*.cpp")
+file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB IMGUI_CPPS "${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp")
 list(APPEND SOURCES ${IMGUI_CPPS})
 
 #glfw
-set(GLFW_DIR ${CMAKE_SOURCE_DIR}/imgui/glfw-3.4) # Set this to point to an up-to-date GLFW repo
+set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui/glfw-3.4) # Set this to point to an up-to-date GLFW repo
 option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
 option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)
 option(GLFW_BUILD_DOCS "Build the GLFW documentation" OFF)
@@ -37,29 +31,45 @@ option(GLFW_INSTALL "Generate installation target" OFF)
 option(GLFW_DOCUMENT_INTERNALS "Include internals in documentation" OFF)
 add_subdirectory(${GLFW_DIR} binary_dir EXCLUDE_FROM_ALL)
 
-# Libraries
-find_package(Vulkan REQUIRED)
-#find_library(VULKAN_LIBRARY
-  #NAMES vulkan vulkan-1)
-#set(LIBRARIES "glfw;${VULKAN_LIBRARY}")
-set(LIBRARIES "glfw;Vulkan::Vulkan")
-
-#submodule
-add_subdirectory(${CMAKE_SOURCE_DIR}/phisi)
+#submodules
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/logger)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/phisi)
 
 #compiltaion
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 #include directories and libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${GLFW_DIR}/include)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/imgui)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    file(GLOB DEBUG_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/debug/*.lib")
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${DEBUG_LIBRARIES})
+else()
+    file(GLOB RELEASE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/release/*.lib")
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${RELEASE_LIBRARIES})
+endif()
+
+find_package(Vulkan REQUIRED)
+#find_library(VULKAN_LIBRARY
+#NAMES vulkan vulkan-1)
+#set(LIBRARIES "glfw;${VULKAN_LIBRARY}")
+set(VULKAN_LIBRARIES "glfw;Vulkan::Vulkan")
+target_link_libraries(${PROJECT_NAME} PRIVATE ${VULKAN_LIBRARIES})
+
+target_include_directories(${PROJECT_NAME} 
+    PRIVATE ${GLFW_DIR}/include 
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui 
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/logger/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/phisi/include)
 
 #build flags
-#set(CMAKE_CXX_FLAGS_DEBUG "-Wall")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -flto")
 
 #pass macro to c code 
 target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME}")
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_DEBUG)
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_RELEASE)
+endif()
