@@ -39,27 +39,15 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/phisi)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 #include directories and libraries
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    file(GLOB DEBUG_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/debug/*.lib")
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${DEBUG_LIBRARIES})
-else()
-    file(GLOB RELEASE_LIBRARIES "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/release/*.lib")
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${RELEASE_LIBRARIES})
-endif()
-
+target_link_libraries(${PROJECT_NAME} PRIVATE logger)
+target_link_libraries(${PROJECT_NAME} PRIVATE phisi)
 find_package(Vulkan REQUIRED)
 #find_library(VULKAN_LIBRARY
 #NAMES vulkan vulkan-1)
 #set(LIBRARIES "glfw;${VULKAN_LIBRARY}")
 set(VULKAN_LIBRARIES "glfw;Vulkan::Vulkan")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${VULKAN_LIBRARIES})
-
-target_include_directories(${PROJECT_NAME} 
-    PRIVATE ${GLFW_DIR}/include 
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui 
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/logger/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/phisi/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 #build flags
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
@@ -70,6 +58,5 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME}
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_DEBUG)
-else()
-    target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_RELEASE)
 endif()
+

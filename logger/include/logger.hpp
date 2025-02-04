@@ -2,9 +2,6 @@
 #include <iostream>
 #include <mutex>
 
-
-
-
 #define _INTERNAL_LOG(msg) (slog::g_logger.begin_msg() << msg << std::endl).end_msg()
 
 #ifdef _OPTION_LOG_ERROR
@@ -15,14 +12,20 @@
 
 #ifdef _OPTION_LOG_WARN
   #define LOG_WARN(msg) _INTERNAL_LOG("[\033[33mWarn\033[0m]\t" << msg)
+#else
+  #define LOG_WARN(msg)
 #endif
 
 #ifdef _OPTION_LOG_INFO
   #define LOG_INFO(msg) _INTERNAL_LOG("[\033[36mInfo\033[0m]\t" << msg)
+#else
+  #define LOG_INFO(msg)
 #endif
 
-#ifdef LOG_TRACE
+#ifdef _OPTION_LOG_TRACE
 #define LOG_TRACE(msg) _INTERNAL_LOG("[\033[35mTrace\033[0m]\t" << msg)
+#else
+  #define LOG_TRACE(msg)
 #endif
 
 

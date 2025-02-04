@@ -16,7 +16,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/release)
 option(LOG_ERROR "Enable logging errors" ON)
 option(LOG_WARN "Enable logging warnings" ON)
 option(LOG_INFO "Enable logging info" ON)
-option(LOG_TRACE "Enable logging traces" OFF)
+option(LOG_TRACE "Enable logging traces" ON)
 
 #compilation
 file(GLOB CPPS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
@@ -28,7 +28,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/in
 
 #definitions
 if(LOG_ERROR)
-  add_compile_definitions(${PROJECT_NAME} PUBLIC _OPTION_LOG_ERROR)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC _OPTION_LOG_ERROR)
 endif()
 
 if(LOG_WARN)
@@ -42,6 +42,3 @@ endif()
 if(LOG_TRACE)
   target_compile_definitions(${PROJECT_NAME} PUBLIC _OPTION_LOG_TRACE)
 endif()
-
-#preproccessed header
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/logger.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/logger_pre.hpp)
