@@ -1,6 +1,7 @@
 #include "phisi_vulkan.hpp"
 #include "imgui_impl_glfw.h"
 #include "logger.hpp"
+#include "phisi_util.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -164,22 +165,6 @@ namespace phisi_app {
       dimensions.second, 
       c_min_image_count);        
     LOG_TRACE("Vulkan window has been setup.");
-  }
-
-
-  void check_vk_result(VkResult err) {
-    if (err == 0)
-        return;
-    LOG_ERROR("VkResult caused an error:" << err);
-    if (err < 0)
-        abort();
-  }
-
-  void check_vk_result(vk::Result err) {
-    if (err == vk::Result::eSuccess)
-        return;
-    LOG_ERROR("VkResult caused an error" << err);
-    abort();
   }  
 
   void VulkanContext::setupImGUI() {
@@ -209,7 +194,7 @@ namespace phisi_app {
     init_info.ImageCount = m_window_data.ImageCount;
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     init_info.Allocator = nullptr;
-    init_info.CheckVkResultFn = check_vk_result;
+    init_info.CheckVkResultFn = checkVkResult;
     ImGui_ImplVulkan_Init(&init_info);  
     LOG_TRACE("ImGUI has been setup.");
   }
@@ -231,22 +216,18 @@ namespace phisi_app {
     vk::CommandBuffer com_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
     
     vk::Fence fence = vk::Fence(frame_data.Fence);
-    check_vk_result(m_device.get().waitForFences(1, &fence, true, UINT64_MAX, m_dldi));
-    check_vk_result(m_device.get().resetFences(1, &fence, m_dldi));
+    checkVkResult(m_device.get().waitForFences({ fence }, true, UINT64_MAX, m_dldi));
+    m_device.get().resetFences({ fence }, m_dldi);
     
     m_device.get().resetCommandPool(frame_data.CommandPool); 
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     com_buffer.begin(begin_info, m_dldi);
     
-    vk::ClearValue clear_value = vk::ClearValue();
-    for (int i = 0; i < 4; i++) {
-      clear_value.color.float32[i] = m_window_data.ClearValue.color.float32[i];
-    }
     vk::RenderPassBeginInfo render_begin_info(
       m_window_data.RenderPass, 
       frame_data.Framebuffer, 
       vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(m_window_data.Width, m_window_data.Height)),
-      1, &clear_value);
+      1, &c_background_color);
     com_buffer.beginRenderPass(render_begin_info, vk::SubpassContents::eInline, m_dldi);
 
     // Record dear imgui primitives into command buffer
@@ -257,7 +238,7 @@ namespace phisi_app {
     vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     vk::SubmitInfo submit_info(1, &image_acquired_semaphore, &wait_stage, 1, &com_buffer, 1, &render_complete_semaphore);
     com_buffer.end(m_dldi);
-    check_vk_result(m_queue.submit(1, &submit_info, fence));
+    m_queue.submit({ submit_info }, fence);
   }
 
   void VulkanContext::presentFrame() {
@@ -271,7 +252,7 @@ namespace phisi_app {
       m_swapchain_rebuild = true;
       return;
     }
-    check_vk_result(result);
+    checkVkResult(result);
     m_window_data.SemaphoreIndex = (m_window_data.SemaphoreIndex + 1) % m_window_data.SemaphoreCount;
     m_window_data.FrameIndex = (m_window_data.FrameIndex + 1) % m_window_data.ImageCount;
   }
@@ -298,51 +279,43 @@ namespace phisi_app {
     }
   }  
 
-  void VulkanContext::render() {
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    while (!m_window.shouldClose()) {
-      glfwPollEvents();
-
-      std::pair fb_size = m_window.getFrameBufferSize();
-      if (fb_size.first > 0 && fb_size.second > 0 && (m_swapchain_rebuild || m_window_data.Width != fb_size.first || m_window_data.Height != fb_size.second)) {
-        ImGui_ImplVulkan_SetMinImageCount(c_min_image_count);
-        ImGui_ImplVulkanH_CreateOrResizeWindow(m_instance.get(), m_device_physical, m_device.get(), &m_window_data, m_queue_family_index, nullptr, fb_size.first, fb_size.second, c_min_image_count);
-        m_window_data.FrameIndex = 0;
-        m_swapchain_rebuild = false;
-      }
-      if (m_window.minimized()) {
-        ImGui_ImplGlfw_Sleep(10);
-        continue;
-      }
-
-      ImGui_ImplVulkan_NewFrame();
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
-
-      ImGui::ShowDemoWindow();
-
-      ImGui::Render();
-      ImDrawData* main_draw_data = ImGui::GetDrawData();
-      const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
-      m_window_data.ClearValue.color.float32[0] = clear_color.x * clear_color.w;
-      m_window_data.ClearValue.color.float32[1] = clear_color.y * clear_color.w;
-      m_window_data.ClearValue.color.float32[2] = clear_color.z * clear_color.w;
-      m_window_data.ClearValue.color.float32[3] = clear_color.w;
-      if (!main_is_minimized)
-        renderFrame(main_draw_data);
-
-
-      // Update and Render additional Platform Windows
-      if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-      {
-          ImGui::UpdatePlatformWindows();
-          ImGui::RenderPlatformWindowsDefault();
-      }
-
-      // Present Main Platform Window
-      if (!main_is_minimized)
-        presentFrame();
+  bool VulkanContext::newFrame() {
+    std::pair fb_size = m_window.getFrameBufferSize();
+    if (fb_size.first > 0 && fb_size.second > 0 && (m_swapchain_rebuild || m_window_data.Width != fb_size.first || m_window_data.Height != fb_size.second)) {
+      ImGui_ImplVulkan_SetMinImageCount(c_min_image_count);
+      ImGui_ImplVulkanH_CreateOrResizeWindow(m_instance.get(), m_device_physical, m_device.get(), &m_window_data, m_queue_family_index, nullptr, fb_size.first, fb_size.second, c_min_image_count);
+      m_window_data.FrameIndex = 0;
+      m_swapchain_rebuild = false;
     }
+    if (m_window.minimized()) {
+      ImGui_ImplGlfw_Sleep(10);
+      return false;
+    }
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    return true;
+  }
+
+  void VulkanContext::render() {
+    ImGui::Render();
+    ImDrawData* main_draw_data = ImGui::GetDrawData();
+    const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
+    if (!main_is_minimized)
+      renderFrame(main_draw_data);
+
+
+    // Update and Render additional Platform Windows
+    if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+
+    // Present Main Platform Window
+    if (!main_is_minimized)
+      presentFrame();
   }
 
   VulkanContext::~VulkanContext() {

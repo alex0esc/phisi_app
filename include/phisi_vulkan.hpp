@@ -1,3 +1,4 @@
+#pragma once
 #include "imgui_impl_vulkan.h"
 #include "phisi_window.hpp"
 #include <vulkan/vulkan.hpp>
@@ -7,10 +8,10 @@ namespace phisi_app {
   class VulkanContext {
     static constexpr int c_min_image_count = 2;
     static constexpr const char* c_window_title = "Phisi";
+    static constexpr vk::ClearValue c_background_color = { vk::ClearColorValue(0.45f, 0.55f, 0.60f, 1.00f) };
     
     vk::UniqueInstance m_instance;
     vk::detail::DispatchLoaderDynamic m_dldi;
-    Window m_window;
     vk::PhysicalDevice m_device_physical;
     vk::UniqueDevice m_device;
     vk::Queue m_queue;
@@ -19,9 +20,6 @@ namespace phisi_app {
     ImGui_ImplVulkanH_Window m_window_data;
     bool m_swapchain_rebuild;
     
-    VulkanContext(const VulkanContext& other) = delete;  
-    VulkanContext(VulkanContext&& other) = delete;
-
     void createVkInstance();  
     void createWindow();
     void chosePhysicalDevice();
@@ -30,17 +28,22 @@ namespace phisi_app {
     void createDescriptorPool();
     void setupVulkanWindow();
     void setupImGUI();
-    void renderFrame(ImDrawData*);
+    void renderFrame(ImDrawData* draw_data);
     void presentFrame();
     
     #ifdef BUILD_DEBUG
     vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_debug_messenger; 
     void createDebugMessenger();
     #endif    
+    
   public:
+    Window m_window;
+    VulkanContext(const VulkanContext& other) = delete;  
+    VulkanContext operator=(const VulkanContext& other) = delete;
     VulkanContext() {};
     ~VulkanContext();
     void init();
+    bool newFrame();
     void render();
   };
     

@@ -1,7 +1,7 @@
-#include "phisi_vulkan.hpp"
+#include "phisi_app.hpp"
 
 int main() {        
-    phisi_app::VulkanContext context;  
-    context.init();    
-    context.render();
+    phisi_app::Application app;
+    app.init();
+    app.run();
 }
