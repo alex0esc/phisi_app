@@ -11,15 +11,66 @@ namespace phisi {
     return {m_x + other.m_x, m_y + other.m_y};
   }
 
+  Vector2D Vector2D::operator+=(const Vector2D& other) {
+    this->m_x += other.m_x;
+    this->m_y += other.m_y;
+    return *this;
+  }
+  
+  
   Vector2D Vector2D::operator-(const Vector2D& other) {
     return {m_x - other.m_x, m_y - other.m_y};
   }
-  
+
+  Vector2D Vector2D::operator-=(const Vector2D& other) {
+    this->m_x -= other.m_x;
+    this->m_y -= other.m_y;
+    return *this;
+  }  
+
+    
   Vector2D Vector2D::operator*(const float other) {
     return {m_x * other, m_y * other};
   }
   
+  Vector2D Vector2D::operator*=(const float other) {
+    this->m_x *= other;
+    this->m_y *= other;
+    return *this;
+  }  
+  
+  Vector2D operator*(const float other, const Vector2D& vec) {
+    return {vec.m_x * other, vec.m_y * other};
+  }
+  
+  
   Vector2D Vector2D::operator/(const float other) {
     return {m_x / other, m_y / other};
+  }
+  
+  Vector2D Vector2D::operator/=(const float other) {
+    this->m_x /= other;
+    this->m_y /= other;
+    return *this;
+  }
+  
+  
+  float Vector2D::operator*(const Vector2D& other) {
+    return m_x * other.m_x + m_y * other.m_y;
+  }
+
+
+  ///calculates the factor k of g : x = a + k * b
+  ///for k = 0 parallel or equal
+  float intersection(Vector2D a, Vector2D b, Vector2D c, Vector2D d) {
+    float div = d.m_x * b.m_y - d.m_y * b.m_x; 
+    if (div == 0.0f)
+      return 0.0f;
+    return ((c.m_x - a.m_x) * d.m_y - (c.m_y - a.m_y) * d.m_x) / div;
+  }
+
+  ///a is the vector that is mirrowed
+  Vector2D reflect(Vector2D a, Vector2D b) {
+    return 2 * ((a * b) / (b * b)) * b - a;  
   }
 }

@@ -2,13 +2,14 @@
 #include "imgui_impl_vulkan.h"
 #include "phisi_window.hpp"
 #include <vulkan/vulkan.hpp>
+#include "phisi_texture.hpp"
 
 namespace phisi_app {
-  
+   
   class VulkanContext {
     static constexpr int c_min_image_count = 2;
     static constexpr const char* c_window_title = "Phisi";
-    static constexpr vk::ClearValue c_background_color = { vk::ClearColorValue(0.45f, 0.55f, 0.60f, 1.00f) };
+    static constexpr vk::ClearValue c_background_color = { vk::ClearColorValue(1.0f, 1.0f, 1.0f, 1.0f) };
     
     vk::UniqueInstance m_instance;
     vk::detail::DispatchLoaderDynamic m_dldi;
@@ -18,7 +19,7 @@ namespace phisi_app {
     uint32_t m_queue_family_index;
     vk::UniqueDescriptorPool m_descriptor_pool;
     ImGui_ImplVulkanH_Window m_window_data;
-    bool m_swapchain_rebuild;
+    bool m_swapchain_rebuild;    
     
     void createVkInstance();  
     void createWindow();
@@ -28,8 +29,9 @@ namespace phisi_app {
     void createDescriptorPool();
     void setupVulkanWindow();
     void setupImGUI();
+        
     void renderFrame(ImDrawData* draw_data);
-    void presentFrame();
+    void presentFrame();  
     
     #ifdef BUILD_DEBUG
     vk::UniqueHandle<vk::DebugUtilsMessengerEXT, vk::detail::DispatchLoaderDynamic> m_debug_messenger; 
@@ -38,11 +40,15 @@ namespace phisi_app {
     
   public:
     Window m_window;
+    TextureData m_texture;
     VulkanContext(const VulkanContext& other) = delete;  
     VulkanContext operator=(const VulkanContext& other) = delete;
-    VulkanContext() {};
+    VulkanContext() = default;
     ~VulkanContext();
-    void init();
+    
+    TextureData getTexture();
+  
+    void init(); 
     bool newFrame();
     void render();
   };

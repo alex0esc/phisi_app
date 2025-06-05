@@ -6,7 +6,7 @@ namespace phisi_app {
   class TextureData {
     vk::PhysicalDevice m_physical_device;
     vk::Device m_device;
-    uint32_t m_queue_family_index;
+    vk::Queue m_queue;
     vk::detail::DispatchLoaderDynamic m_dldi;
     
     vk::DescriptorSet m_descriptor_set;
@@ -16,20 +16,32 @@ namespace phisi_app {
     vk::Sampler m_sampler;
     vk::Buffer m_staging_buffer;
     vk::DeviceMemory m_staging_memory;
+    void* m_mapped_memory;
 
-    TextureData(const TextureData& other) = delete;
-    TextureData operator=(const TextureData& other) = delete;
+  public:
+    uint32_t m_width;
+    uint32_t m_height;
+    vk::DeviceSize m_image_size;
+    
+    TextureData() = default;
+    
     TextureData(
       vk::Device device, 
       vk::PhysicalDevice physical_device, 
-      uint32_t queue_family_index,
+      vk::Queue queue,
       vk::detail::DispatchLoaderDynamic dldi) 
     : m_physical_device(physical_device), 
       m_device(device), 
-      m_queue_family_index(queue_family_index),
+      m_queue(queue),
       m_dldi(dldi) {}    
     
-    void loadTextureFromMemoryRGBA(const uint8_t* memory, uint32_t width, uint32_t height);
+    void init(uint32_t width, uint32_t height);
+    void load_memory(const uint8_t* memory);
+    uint8_t* get_memory();
+    void flush_memory();
+    void copy_buffer_to_image(vk::CommandBuffer cmd_buffer);
+    VkDescriptorSet get_descriptor();
+    void destroy();
   };   
   
 }

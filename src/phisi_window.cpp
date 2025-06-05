@@ -27,7 +27,7 @@ namespace phisi_app {
   
   void Window::createWindow(std::string title) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
     
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();

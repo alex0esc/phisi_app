@@ -112,12 +112,13 @@ namespace phisi_app {
   }
 
   void VulkanContext::createDescriptorPool() {
-    vk::DescriptorPoolSize size(vk::DescriptorType::eCombinedImageSampler, 1);          
-    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1, 1, &size);
+    vk::DescriptorPoolSize size(vk::DescriptorType::eCombinedImageSampler, 2);          
+    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 2, 1, &size);
     m_descriptor_pool = m_device.get().createDescriptorPoolUnique(create_info);
     LOG_TRACE("Created VkDescriptorPool.");
   }
 
+  
   void VulkanContext::setupVulkanWindow() {
     m_window_data.Surface = m_window.m_surface;
     if (!m_device_physical.getSurfaceSupportKHR(m_queue_family_index, m_window_data.Surface, m_dldi)) {
@@ -198,8 +199,9 @@ namespace phisi_app {
     ImGui_ImplVulkan_Init(&init_info);  
     LOG_TRACE("ImGUI has been setup.");
   }
-
-
+  
+  
+  
   void VulkanContext::renderFrame(ImDrawData* draw_data) {    
     vk::Semaphore image_acquired_semaphore  = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].ImageAcquiredSemaphore;
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
@@ -213,26 +215,34 @@ namespace phisi_app {
     }
 
     ImGui_ImplVulkanH_Frame frame_data = m_window_data.Frames[m_window_data.FrameIndex];
-    vk::CommandBuffer com_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
-    
+        
+    //wait for Frame to be presented
     vk::Fence fence = vk::Fence(frame_data.Fence);
     checkVkResult(m_device.get().waitForFences({ fence }, true, UINT64_MAX, m_dldi));
     m_device.get().resetFences({ fence }, m_dldi);
     
+    //reset command pool
     m_device.get().resetCommandPool(frame_data.CommandPool); 
+    vk::CommandBuffer com_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
+    
+    //begin command buffer
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     com_buffer.begin(begin_info, m_dldi);
-    
+
+    //copy buffer to image
+    m_texture.copy_buffer_to_image(com_buffer);
+   
+    //begin render pass
     vk::RenderPassBeginInfo render_begin_info(
       m_window_data.RenderPass, 
       frame_data.Framebuffer, 
       vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(m_window_data.Width, m_window_data.Height)),
       1, &c_background_color);
     com_buffer.beginRenderPass(render_begin_info, vk::SubpassContents::eInline, m_dldi);
-
+    
     // Record dear imgui primitives into command buffer
     ImGui_ImplVulkan_RenderDrawData(draw_data, frame_data.CommandBuffer);
-
+    
     // Submit command buffer
     com_buffer.endRenderPass(m_dldi);
     vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -272,6 +282,7 @@ namespace phisi_app {
       createDescriptorPool();
       setupVulkanWindow();
       setupImGUI();
+      m_texture = TextureData(m_device.get(), m_device_physical, m_queue, m_dldi);
     } catch(const vk::Error& err) {
       LOG_ERROR(err.what());
     } catch(...) {
@@ -279,7 +290,7 @@ namespace phisi_app {
     }
   }  
 
-  bool VulkanContext::newFrame() {
+  bool VulkanContext::newFrame() { 
     std::pair fb_size = m_window.getFrameBufferSize();
     if (fb_size.first > 0 && fb_size.second > 0 && (m_swapchain_rebuild || m_window_data.Width != fb_size.first || m_window_data.Height != fb_size.second)) {
       ImGui_ImplVulkan_SetMinImageCount(c_min_image_count);
@@ -290,8 +301,8 @@ namespace phisi_app {
     if (m_window.minimized()) {
       ImGui_ImplGlfw_Sleep(10);
       return false;
-    }
-
+    }  
+        
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -320,6 +331,7 @@ namespace phisi_app {
 
   VulkanContext::~VulkanContext() {
     m_device.get().waitIdle();
+    m_texture.destroy();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplVulkanH_DestroyWindow(m_instance.get(), m_device.get(), &m_window_data, nullptr);
