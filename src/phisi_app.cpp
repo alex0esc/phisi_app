@@ -22,24 +22,35 @@ namespace phisi_app {
 
 
   void Application::update() {
-    //manage drawing
-    if (glfwGetMouseButton(m_vk_context.m_window.m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-      double cursor_x, cursor_y;
-      glfwGetCursorPos(m_vk_context.m_window.m_window, &cursor_x, &cursor_y);
-      uint32_t pixel_x = cursor_x / 8.0;
-      uint32_t pixel_y = cursor_y / 8.0;
-      uint8_t color[4] = {
-        static_cast<uint8_t>(m_paint_color.x * 255), 
-        static_cast<uint8_t>(m_paint_color.y * 255),
-        static_cast<uint8_t>(m_paint_color.z * 255),
-        static_cast<uint8_t>(m_paint_color.w * 255)};
-      m_fluid_screen.add_color(m_paint_size, color, pixel_x, pixel_y);
+    //manage user input
+    static bool button_press = false;
+    int button_state = glfwGetMouseButton(m_vk_context.m_window.m_window, GLFW_MOUSE_BUTTON_LEFT);
+    static double last_cursor_x, last_cursor_y = 0.0;
+    double cursor_x, cursor_y;
+    glfwGetCursorPos(m_vk_context.m_window.m_window, &cursor_x, &cursor_y); 
+    if (button_state == GLFW_PRESS && !button_press) {
+      button_press = true;  
+      if (m_screen_mode == 0) {  
+        m_fluid_screen.add_color(m_paint_size, phisi::Vector2D(cursor_x / 8.0, cursor_y / 8.0), m_paint_color);
+      } else if(m_screen_mode == 1) {
+        phisi::Vector2D direction = {0.0, 0.0};
+        direction.m_x = cursor_x - last_cursor_x;
+        direction.m_y = cursor_y - last_cursor_y;
+        direction /= m_frame_time * 20;
+        m_fluid_screen.add_velocity(m_paint_size, direction, phisi::Vector2D(cursor_x / 8.0, cursor_y / 8.0));
+      }
+    } else if (button_state == GLFW_RELEASE && button_press) {
+      button_press = false;
     }
+    last_cursor_x = cursor_x;
+    last_cursor_y = cursor_y;
+    
     //update simultaion
     m_fluid_screen.simulate(m_frame_time);
+    
     //load color field or pressure field
-    if (m_show_pressure) {
-      m_fluid_screen.calculate_pressure_color(m_vk_context.m_texture.get_memory());  
+    if (m_screen_mode == 2) {
+      m_fluid_screen.get_pressure_color(m_vk_context.m_texture.get_memory());  
     } else {
       m_fluid_screen.get_color_field(m_vk_context.m_texture.get_memory());    
     }
@@ -57,16 +68,15 @@ namespace phisi_app {
     //create info window
     ImGui::Begin("General info");
     ImGui::Text("FPS: %f", 1.0 / m_frame_time);
-    ImGui::Checkbox("Show pressure", &m_show_pressure);
     ImGui::End();
 
     //create cursor action window
     ImGui::Begin("Cursor action");
-    ImGui::ColorEdit4("Paint color", (float*) &m_paint_color);
+    ImGui::ColorEdit3("Paint color", (float*) &m_paint_color);
     ImGui::SliderFloat("Paint size", &m_paint_size, 1.0, 20.0);
-    ImGui::Checkbox("Color mode", &color_mode);
-    ImGui::SameLine();
-    ImGui::Checkbox("Velocity mode: ", &velocity_mode);
+    if(ImGui::RadioButton("Color Mode", m_screen_mode == 0)) m_screen_mode = 0;
+    if(ImGui::RadioButton("Velocity Mode", m_screen_mode == 1)) m_screen_mode = 1;
+    if(ImGui::RadioButton("Pressure Field", m_screen_mode == 2)) m_screen_mode = 2;
     ImGui::End();
     
     //draw texture

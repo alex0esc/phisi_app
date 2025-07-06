@@ -32,7 +32,7 @@ namespace phisi_app {
     
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
-    m_window = glfwCreateWindow(vidmode->width / 2, vidmode->height / 2, title.c_str(), nullptr, nullptr);
+    m_window = glfwCreateWindow(vidmode->width * 0.7, vidmode->height * 0.7, title.c_str(), nullptr, nullptr);
     LOG_TRACE("GLFW window has been created.");
   }
 

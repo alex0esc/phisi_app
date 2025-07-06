@@ -229,6 +229,9 @@ namespace phisi_app {
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     com_buffer.begin(begin_info, m_dldi);
 
+    //TODO compute shader here
+    
+
     //copy buffer to image
     m_texture.copy_buffer_to_image(com_buffer);
    

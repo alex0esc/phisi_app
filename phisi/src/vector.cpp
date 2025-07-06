@@ -60,13 +60,13 @@ namespace phisi {
   }
 
 
-  ///calculates the factor k of g : x = a + k * b
   ///for k = 0 parallel or equal
+  ///calculates the factor k of g : x = a + k * b wich gives the point of intersection with h : x = c + u * d 
   float intersection(Vector2D a, Vector2D b, Vector2D c, Vector2D d) {
     float div = d.m_x * b.m_y - d.m_y * b.m_x; 
     if (div == 0.0f)
       return 0.0f;
-    return ((c.m_x - a.m_x) * d.m_y - (c.m_y - a.m_y) * d.m_x) / div;
+    return ((c.m_y - a.m_y) * d.m_x - (c.m_x - a.m_x) * d.m_y) / div;
   }
 
   ///a is the vector that is mirrowed

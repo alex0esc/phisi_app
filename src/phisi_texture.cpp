@@ -148,7 +148,6 @@ namespace phisi_app {
         vk::ImageLayout::eTransferDstOptimal, 
         1, &region, 
       m_dldi);
-    
 
       vk::ImageMemoryBarrier use_barrier(
         vk::AccessFlagBits::eTransferWrite, 
