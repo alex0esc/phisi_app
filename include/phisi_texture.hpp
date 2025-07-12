@@ -6,9 +6,9 @@ namespace phisi_app {
   class TextureData {
     vk::PhysicalDevice m_physical_device;
     vk::Device m_device;
-    vk::Queue m_queue;
     vk::detail::DispatchLoaderDynamic m_dldi;
     
+  public:
     vk::DescriptorSet m_descriptor_set;
     vk::ImageView m_image_view;
     vk::Image m_image;
@@ -18,30 +18,29 @@ namespace phisi_app {
     vk::DeviceMemory m_staging_memory;
     void* m_mapped_memory;
 
-  public:
     uint32_t m_width;
     uint32_t m_height;
     vk::DeviceSize m_image_size;
     
     TextureData() = default;
+    TextureData(const TextureData& other) = delete;  
+    TextureData& operator=(const TextureData& other) = delete;    
     
-    TextureData(
-      vk::Device device, 
-      vk::PhysicalDevice physical_device, 
-      vk::Queue queue,
-      vk::detail::DispatchLoaderDynamic dldi) 
-    : m_physical_device(physical_device), 
-      m_device(device), 
-      m_queue(queue),
-      m_dldi(dldi) {}    
-    
-    void init(uint32_t width, uint32_t height);
-    void load_memory(const uint8_t* memory);
-    uint8_t* get_memory();
-    void flush_memory();
-    void copy_buffer_to_image(vk::CommandBuffer cmd_buffer);
-    VkDescriptorSet get_descriptor();
-    void destroy();
+    void initVk(vk::PhysicalDevice physical_device, vk::Device device, vk::detail::DispatchLoaderDynamic dldi) {
+      m_physical_device = physical_device;
+      m_device = device;
+      m_dldi = dldi;
+    }
+    void initTransfer(uint32_t width, uint32_t height);
+    void initGpuOnly(uint32_t width, uint32_t height);
+    void allocateStagingBuffer();
+    void loadMemoryStaging(const uint8_t* memory);
+    uint8_t* getMemoryStaging();
+    void flushMemoryStaging();
+    void copyStagingBufferToImage(vk::CommandBuffer cmd_buffer);
+    VkDescriptorSet getDescriptor();
+    void destroyTransfer();
+    void destroyGpuOnly();
   };   
   
 }

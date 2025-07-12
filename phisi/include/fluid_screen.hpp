@@ -5,7 +5,7 @@
 namespace phisi::fluid {
 
   class FluidScreen {
-    float m_gravity = 9.81 * 2; //gravity on earth
+    float m_gravity = 9.81; //gravity on earth
     uint32_t m_div_iters = 100; //number of iteration to clear divergence 
     float m_overrelaxation = 1.9; //as close to 2.0 as possible
     float m_density = 998.0; //for water
@@ -30,7 +30,7 @@ namespace phisi::fluid {
   public:
     FluidScreen() = default;
     void allocate(uint32_t width, uint32_t height);
-    void simulate(float frame_time);
+    void simulate(float frame_time, float stream_color[3]);
     
     void add_color(float radius, Vector2D location, float color[3]);
     void add_velocity(float radius, Vector2D direction, Vector2D location);

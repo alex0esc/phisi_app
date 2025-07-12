@@ -2,7 +2,7 @@
 #include "imgui_impl_vulkan.h"
 #include "phisi_window.hpp"
 #include <vulkan/vulkan.hpp>
-#include "phisi_texture.hpp"
+#include "gpu_fluid_screen.hpp"
 
 namespace phisi_app {
    
@@ -10,6 +10,8 @@ namespace phisi_app {
     static constexpr int c_min_image_count = 2;
     static constexpr const char* c_window_title = "Phisi";
     static constexpr vk::ClearValue c_background_color = { vk::ClearColorValue(1.0f, 1.0f, 1.0f, 1.0f) };
+    static constexpr uint32_t c_max_descriptors = 10;
+    static constexpr uint32_t c_max_descriptor_sets = 5;
     
     vk::UniqueInstance m_instance;
     vk::detail::DispatchLoaderDynamic m_dldi;
@@ -39,18 +41,19 @@ namespace phisi_app {
     #endif    
     
   public:
-    Window m_window;
+    float m_frame_time = 0.01;
+    PhisiWindow m_window;
     TextureData m_texture;
-    VulkanContext(const VulkanContext& other) = delete;  
-    VulkanContext operator=(const VulkanContext& other) = delete;
-    VulkanContext() = default;
-    ~VulkanContext();
+    phisi::fluid::GpuFluidScreen m_fluid_screen;
     
-    TextureData getTexture();
-  
+    VulkanContext() = default;
+    VulkanContext(const VulkanContext& other) = delete;  
+    VulkanContext& operator=(const VulkanContext& other) = delete;
+    
     void init(); 
     bool newFrame();
     void render();
+    void destroy();
   };
     
 }

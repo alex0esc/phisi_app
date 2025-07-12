@@ -1,21 +1,29 @@
 #include "phisi_app.hpp"
 #include "imgui.h"
 #include "logger.hpp"
-#include <chrono>
+#include <cmath>
 
 namespace phisi_app {
 
   void Application::init() {
     //init vulkan and imgui
     m_vk_context.init();
-    ImGui::GetIO().Fonts -> AddFontFromFileTTF("Cousine-Regular.ttf", 18.0);  
+    ImGuiIO& imgui_io = ImGui::GetIO();
+    imgui_io.IniFilename = "config/imgui.ini";
+    imgui_io.Fonts -> AddFontFromFileTTF("assets/Cousine-Regular.ttf", 18.0);
     
     //init texture
     std::pair size = m_vk_context.m_window.getFrameBufferSize();
-    m_vk_context.m_texture.init(size.first / 8, size.second / 8);
+    m_vk_context.m_texture.initGpuOnly(size.first / 2, size.second / 2);
+    //m_vk_context.m_texture.allocateStagingBuffer();
+    
+    //init gpu FluidScreen
+    m_vk_context.m_fluid_screen.setImage(m_vk_context.m_texture);
+    m_vk_context.m_fluid_screen.allocate(m_vk_context.m_texture.m_width, m_vk_context.m_texture.m_height);
+    m_vk_context.m_fluid_screen.initBuffer();
     
     //allocate FluidScreen
-    m_fluid_screen.allocate(m_vk_context.m_texture.m_width, m_vk_context.m_texture.m_height);
+    //m_fluid_screen.allocate(m_vk_context.m_texture.m_width, m_vk_context.m_texture.m_height);
     LOG_INFO("Created FluidScreen of size " << m_vk_context.m_texture.m_width << " * " << m_vk_context.m_texture.m_height);
   }
 
@@ -23,60 +31,42 @@ namespace phisi_app {
 
   void Application::update() {
     //manage user input
-    static bool button_press = false;
-    int button_state = glfwGetMouseButton(m_vk_context.m_window.m_window, GLFW_MOUSE_BUTTON_LEFT);
     static double last_cursor_x, last_cursor_y = 0.0;
     double cursor_x, cursor_y;
     glfwGetCursorPos(m_vk_context.m_window.m_window, &cursor_x, &cursor_y); 
-    if (button_state == GLFW_PRESS && !button_press) {
-      button_press = true;  
-      if (m_screen_mode == 0) {  
-        m_fluid_screen.add_color(m_paint_size, phisi::Vector2D(cursor_x / 8.0, cursor_y / 8.0), m_paint_color);
-      } else if(m_screen_mode == 1) {
-        phisi::Vector2D direction = {0.0, 0.0};
-        direction.m_x = cursor_x - last_cursor_x;
-        direction.m_y = cursor_y - last_cursor_y;
-        direction /= m_frame_time * 20;
-        m_fluid_screen.add_velocity(m_paint_size, direction, phisi::Vector2D(cursor_x / 8.0, cursor_y / 8.0));
+    m_vk_context.m_fluid_screen.setPencilRadius(m_pencil_radius);
+    m_vk_context.m_fluid_screen.setPencilPosition(cursor_x / 2.0, cursor_y / 2.0);
+    if (glfwGetMouseButton(m_vk_context.m_window.m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {  
+      if (m_pencil_mode == 0) {
+        m_vk_context.m_fluid_screen.setPencilColor(m_pencil_color);
+      } else if(m_pencil_mode == 1) {
+        float direction[2] = {0.0, 0.0};
+        direction[0] = (cursor_x - last_cursor_x) / (m_vk_context.m_frame_time * 20);
+        direction[1] = (cursor_y - last_cursor_y) / (m_vk_context.m_frame_time * 20);
+        m_vk_context.m_fluid_screen.setPencilVelocity(direction);
       }
-    } else if (button_state == GLFW_RELEASE && button_press) {
-      button_press = false;
-    }
+    } else
+      m_vk_context.m_fluid_screen.removePencil();
     last_cursor_x = cursor_x;
     last_cursor_y = cursor_y;
-    
-    //update simultaion
-    m_fluid_screen.simulate(m_frame_time);
-    
-    //load color field or pressure field
-    if (m_screen_mode == 2) {
-      m_fluid_screen.get_pressure_color(m_vk_context.m_texture.get_memory());  
-    } else {
-      m_fluid_screen.get_color_field(m_vk_context.m_texture.get_memory());    
-    }
   }
 
-  
-
-  void Application::imGuiLayoutSetup() {
-    //calculate fps
-    static auto now = std::chrono::high_resolution_clock::now();
-    m_frame_time = std::chrono::duration_cast<std::chrono::microseconds>
-      (std::chrono::high_resolution_clock::now() - now).count() / 1000000.0;
-    now = std::chrono::high_resolution_clock::now();
-    
+    void Application::imGuiLayoutSetup() {
     //create info window
     ImGui::Begin("General info");
-    ImGui::Text("FPS: %f", 1.0 / m_frame_time);
+    ImGui::Text("FPS: %f", 1.0 / m_vk_context.m_frame_time);
+    if (ImGui::Button("Pause/Play")) 
+      m_vk_context.m_fluid_screen.m_run_simulation ^= true;
     ImGui::End();
 
     //create cursor action window
     ImGui::Begin("Cursor action");
-    ImGui::ColorEdit3("Paint color", (float*) &m_paint_color);
-    ImGui::SliderFloat("Paint size", &m_paint_size, 1.0, 20.0);
-    if(ImGui::RadioButton("Color Mode", m_screen_mode == 0)) m_screen_mode = 0;
-    if(ImGui::RadioButton("Velocity Mode", m_screen_mode == 1)) m_screen_mode = 1;
-    if(ImGui::RadioButton("Pressure Field", m_screen_mode == 2)) m_screen_mode = 2;
+    ImGui::ColorEdit3("Pencil color", m_pencil_color);
+    ImGui::SliderFloat("Pencil size", &m_pencil_radius, 1.0, std::round(m_vk_context.m_texture.m_width / 6.0));
+    if(ImGui::RadioButton("Color Mode", m_pencil_mode == 0))
+      m_pencil_mode = 0;
+    if(ImGui::RadioButton("Velocity Mode", m_pencil_mode  == 1))
+      m_pencil_mode = 1;
     ImGui::End();
     
     //draw texture
@@ -86,7 +76,7 @@ namespace phisi_app {
     ImVec2 size = viewport->Size;
 
     draw_list->AddImage(
-      (ImTextureID) m_vk_context.m_texture.get_descriptor(), 
+      (ImTextureID) m_vk_context.m_texture.getDescriptor(), 
       pos,
       ImVec2(pos.x + size.x, pos.y + size.y));    
   }
@@ -108,5 +98,6 @@ namespace phisi_app {
   }
 
   Application::~Application() {
+    m_vk_context.destroy();
   }
 }

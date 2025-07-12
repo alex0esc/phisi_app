@@ -17,10 +17,23 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/release)
 #compile command for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+#create necessary directories
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/config)
+
 #source files
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 file(GLOB IMGUI_CPPS "${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp")
 list(APPEND SOURCES ${IMGUI_CPPS})
+set(SHADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADERS 
+    ${SHADER_DIR}/force.comp
+    ${SHADER_DIR}/velocity.comp
+    ${SHADER_DIR}/divergence.comp
+    ${SHADER_DIR}/color.comp
+)
+
 
 #glfw
 set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui/glfw-3.4) # Set this to point to an up-to-date GLFW repo
@@ -48,6 +61,25 @@ find_package(Vulkan REQUIRED)
 set(VULKAN_LIBRARIES "glfw;Vulkan::Vulkan")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${VULKAN_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+#compile shader
+set(COMPILED_SHADERS)
+
+foreach(SHADER ${SHADERS})    
+get_filename_component(FILE_NAME ${SHADER} NAME_WE)
+set(OUTPUT_PATH ${SHADER_DIR}/${FILE_NAME}.spv) 
+    
+add_custom_command(
+    OUTPUT ${OUTPUT_PATH}
+    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH}
+    DEPENDS ${SHADER}
+    COMMENT "Compiling shader ${FILE_NAME}.")
+    
+list(APPEND COMPILED_SHADERS ${OUTPUT_PATH})
+endforeach()
+
+add_custom_target(Shaders ALL DEPENDS ${COMPILED_SHADERS})
+add_dependencies(${PROJECT_NAME} Shaders)
 
 #build flags
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")

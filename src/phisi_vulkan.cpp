@@ -112,8 +112,8 @@ namespace phisi_app {
   }
 
   void VulkanContext::createDescriptorPool() {
-    vk::DescriptorPoolSize size(vk::DescriptorType::eCombinedImageSampler, 2);          
-    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 2, 1, &size);
+    vk::DescriptorPoolSize size(vk::DescriptorType::eCombinedImageSampler, c_max_descriptors);          
+    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, c_max_descriptor_sets, 1, &size);
     m_descriptor_pool = m_device.get().createDescriptorPoolUnique(create_info);
     LOG_TRACE("Created VkDescriptorPool.");
   }
@@ -223,17 +223,17 @@ namespace phisi_app {
     
     //reset command pool
     m_device.get().resetCommandPool(frame_data.CommandPool); 
-    vk::CommandBuffer com_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
+    vk::CommandBuffer cmd_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
     
     //begin command buffer
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    com_buffer.begin(begin_info, m_dldi);
+    cmd_buffer.begin(begin_info, m_dldi);
 
     //TODO compute shader here
-    
+    m_fluid_screen.compute(cmd_buffer, m_frame_time);
 
     //copy buffer to image
-    m_texture.copy_buffer_to_image(com_buffer);
+    //m_texture.copyStagingBufferToImage(com_buffer);
    
     //begin render pass
     vk::RenderPassBeginInfo render_begin_info(
@@ -241,16 +241,16 @@ namespace phisi_app {
       frame_data.Framebuffer, 
       vk::Rect2D(vk::Offset2D(0, 0), vk::Extent2D(m_window_data.Width, m_window_data.Height)),
       1, &c_background_color);
-    com_buffer.beginRenderPass(render_begin_info, vk::SubpassContents::eInline, m_dldi);
+    cmd_buffer.beginRenderPass(render_begin_info, vk::SubpassContents::eInline, m_dldi);
     
     // Record dear imgui primitives into command buffer
     ImGui_ImplVulkan_RenderDrawData(draw_data, frame_data.CommandBuffer);
     
     // Submit command buffer
-    com_buffer.endRenderPass(m_dldi);
+    cmd_buffer.endRenderPass(m_dldi);
     vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    vk::SubmitInfo submit_info(1, &image_acquired_semaphore, &wait_stage, 1, &com_buffer, 1, &render_complete_semaphore);
-    com_buffer.end(m_dldi);
+    vk::SubmitInfo submit_info(1, &image_acquired_semaphore, &wait_stage, 1, &cmd_buffer, 1, &render_complete_semaphore);
+    cmd_buffer.end(m_dldi);
     m_queue.submit({ submit_info }, fence);
   }
 
@@ -272,7 +272,7 @@ namespace phisi_app {
   
 
   void VulkanContext::init() {
-    Window::initGlfw();
+    PhisiWindow::initGlfw();
     try {
       createVkInstance();
       #ifdef BUILD_DEBUG 
@@ -285,7 +285,8 @@ namespace phisi_app {
       createDescriptorPool();
       setupVulkanWindow();
       setupImGUI();
-      m_texture = TextureData(m_device.get(), m_device_physical, m_queue, m_dldi);
+      m_texture.initVk(m_device_physical, m_device.get(), m_dldi);
+      m_fluid_screen.initVk(m_device_physical, m_device.get(), m_descriptor_pool.get(), m_dldi, m_window_data.Frames[0].CommandPool, m_queue);
     } catch(const vk::Error& err) {
       LOG_ERROR(err.what());
     } catch(...) {
@@ -313,6 +314,12 @@ namespace phisi_app {
   }
 
   void VulkanContext::render() {
+    static auto time_last = std::chrono::high_resolution_clock::now();
+    auto time_now = std::chrono::high_resolution_clock::now();
+    m_frame_time = std::chrono::duration_cast<std::chrono::microseconds>(time_now - time_last).count() / 1000000.0;
+    time_last = time_now;
+    
+    
     ImGui::Render();
     ImDrawData* main_draw_data = ImGui::GetDrawData();
     const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
@@ -332,11 +339,13 @@ namespace phisi_app {
       presentFrame();
   }
 
-  VulkanContext::~VulkanContext() {
+  void VulkanContext::destroy() {
     m_device.get().waitIdle();
-    m_texture.destroy();
+    m_fluid_screen.destroy();
+    m_texture.destroyGpuOnly();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplVulkanH_DestroyWindow(m_instance.get(), m_device.get(), &m_window_data, nullptr);
+    m_window.destory();
   }
 }

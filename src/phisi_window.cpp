@@ -9,7 +9,7 @@ namespace phisi_app {
     LOG_ERROR("Glfw error " << error << ": " << description); 
   }
 
-  void Window::initGlfw() {
+  void PhisiWindow::initGlfw() {
     if(!glfwInit()) {
       LOG_ERROR("Failed to initialize GLFW.");
     }
@@ -20,24 +20,29 @@ namespace phisi_app {
   }
 
 
-  void Window::setInstance(vk::Instance instance) {
+  void PhisiWindow::setInstance(vk::Instance instance) {
     m_instance = instance;
   }
 
   
-  void Window::createWindow(std::string title) {
+  void PhisiWindow::createWindow(std::string title) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
     
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* vidmode = glfwGetVideoMode(monitor);
-    m_window = glfwCreateWindow(vidmode->width * 0.7, vidmode->height * 0.7, title.c_str(), nullptr, nullptr);
+    const GLFWvidmode* vid_mode = glfwGetVideoMode(monitor);
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_RED_BITS, vid_mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, vid_mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, vid_mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, vid_mode->refreshRate);
+    m_window = glfwCreateWindow(vid_mode->width, vid_mode->height, title.c_str(), nullptr, nullptr);
     LOG_TRACE("GLFW window has been created.");
   }
 
 
-  void Window::createSurface() {
+  void PhisiWindow::createSurface() {
     VkSurfaceKHR surface;
     VkResult result = glfwCreateWindowSurface(m_instance, m_window, nullptr, &surface);
     if (result != 0) {
@@ -49,26 +54,26 @@ namespace phisi_app {
   }
 
 
-  void Window::create(std::string title) {
+  void PhisiWindow::create(std::string title) {
     createWindow(title);  
     createSurface();
   }
 
-  std::pair<int, int> Window::getFrameBufferSize() {
+  std::pair<int, int> PhisiWindow::getFrameBufferSize() {
     int width, height;
     glfwGetFramebufferSize(m_window, &width, &height);
     return std::pair{width, height};
   }
 
-  bool Window::shouldClose() {
+  bool PhisiWindow::shouldClose() {
     return glfwWindowShouldClose(m_window);
   }
 
-  bool Window::minimized() {
+  bool PhisiWindow::minimized() {
     return glfwGetWindowAttrib(m_window, GLFW_ICONIFIED);
   }
 
-  Window::~Window() {
+  void PhisiWindow::destory() {
     glfwDestroyWindow(m_window);
   }
 }

@@ -1,0 +1,82 @@
+#version 460 
+    
+#define WALL(index) fluid_buffer[OFFSET_WALL + index]
+#define VEL_H(index) fluid_buffer[OFFSET_VEL_H + index]
+#define VEL_H_2(index) fluid_buffer[OFFSET_VEL_H_2 + index]
+#define VEL_V(index) fluid_buffer[OFFSET_VEL_V + index]
+#define VEL_V_2(index) fluid_buffer[OFFSET_VEL_V_2 + index]
+#define PRESSURE(index) fluid_buffer[OFFSET_PRESSURE + index]
+#define COLOR(index) fluid_buffer[OFFSET_COLOR + index]
+#define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
+ 
+layout(push_constant) uniform push_constants {
+    uint[4] sim_state;
+    float[4] fluid_constants;
+    uint pencil_mode;
+    float pencil_radius;
+    vec2 pencil_pos;
+    float[3] pencil_data;
+};
+layout(std430, binding = 0) buffer storage_buffer {
+    float[] fluid_buffer;
+};
+layout(binding = 1, rgba8) uniform writeonly image2D fluid_image;
+layout(local_size_x = 16, local_size_y = 16) in;
+       
+
+void main() {
+    uint width = sim_state[0];
+    uint height = sim_state[1];
+    uint x = gl_GlobalInvocationID.x + 1;
+    uint y = gl_GlobalInvocationID.y + 1;
+    if(x >= width - 1 || y >= height - 1)
+        return;
+    uint sim_size = width * height;
+    uint index = y * width + x;
+        
+    uint OFFSET_WALL = 0;
+    uint OFFSET_VEL_H = 1 * sim_size;
+    uint OFFSET_VEL_H_2 = 2 * sim_size;
+    uint OFFSET_VEL_V = 3 * sim_size;
+    uint OFFSET_VEL_V_2 = 4 * sim_size;
+    uint OFFSET_PRESSURE = 5 * sim_size;
+    uint OFFSET_COLOR = 6 * sim_size;
+    uint OFFSET_COLOR_2 = 9 * sim_size;
+    if(sim_state[2] == 0) {    
+        OFFSET_VEL_H = 2 * sim_size;
+        OFFSET_VEL_H_2 = 1 * sim_size;
+        OFFSET_VEL_V = 4 * sim_size;
+        OFFSET_VEL_V_2 = 3 * sim_size;
+        OFFSET_COLOR = 9 * sim_size;
+        OFFSET_COLOR_2 = 6 * sim_size;
+    }
+    
+    //TODO fluid flowing in 
+    if(y == 1 && x > width * 0.48 && x < width * 0.52) {
+        COLOR(index * 3) = 1.0;    
+        COLOR(index * 3 + 1) = 0.0;
+        COLOR(index * 3 + 2) = 0.0;
+        VEL_V(index) = 20.0;
+    }
+    
+    //apply gravity
+    if(y > 1) {
+        float gravity = fluid_constants[0];
+        float frame_time = fluid_constants[2];
+        VEL_V(index) += gravity * frame_time;
+    }
+    
+    //manage cursor
+    if(pencil_mode == 0 || distance(vec2(gl_GlobalInvocationID.xy), pencil_pos) > pencil_radius)
+        return;    
+    if(pencil_mode == 1) {
+        COLOR(index * 3) = pencil_data[0];
+        COLOR(index * 3 + 1) = pencil_data[1];
+        COLOR(index * 3 + 2) = pencil_data[2];
+    } else if(pencil_mode == 2) {
+        if(x > 1)
+            VEL_H(index) = pencil_data[0];
+        if(y > 1)
+            VEL_V(index) = pencil_data[1];
+    }
+}

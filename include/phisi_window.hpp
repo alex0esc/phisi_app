@@ -7,7 +7,7 @@
 
 namespace phisi_app {
 
-  class Window {
+  class PhisiWindow {
     vk::Instance m_instance;
     
     void createWindow(std::string title);
@@ -17,16 +17,16 @@ namespace phisi_app {
     GLFWwindow* m_window;
     vk::SurfaceKHR m_surface;
     
-    Window(const Window&) = delete;
-    Window& operator=(const Window&) = delete;
-    Window() {}
-    ~Window();
+    PhisiWindow(const PhisiWindow&) = delete;
+    PhisiWindow& operator=(const PhisiWindow&) = delete;
+    PhisiWindow() {}
     static void initGlfw();
     void setInstance(vk::Instance instance);
     void create(std::string title);
     std::pair<int, int> getFrameBufferSize();
     bool shouldClose();
     bool minimized();
+    void destory();
   };
   
 }

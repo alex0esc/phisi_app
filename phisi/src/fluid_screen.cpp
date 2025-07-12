@@ -258,14 +258,13 @@ namespace phisi::fluid {
   }
   
     
-  void FluidScreen::simulate(float frame_time) {
+  void FluidScreen::simulate(float frame_time, float stream_color[3]) {
      //TODO Test Code
     for(int i = -5; i < 5; i++) {
         m_vel_v[m_width * 1.5 + i] = 20.0;
-        m_color_field[(m_width * 1.5 + i) * 3] = 1.0;
-        m_color_field[(m_width * 1.5 + i) * 3 + 1] = 1.0;
-        m_color_field[(m_width * 1.5 + i) * 3 + 2] = 0.0;
-        
+        m_color_field[(m_width * 1.5 + i) * 3] = stream_color[0];
+        m_color_field[(m_width * 1.5 + i) * 3 + 1] = stream_color[1];
+        m_color_field[(m_width * 1.5 + i) * 3 + 2] = stream_color[2];
     } 
     frame_time = frame_time > 1.0 ? 1.0 : frame_time;
     add_gravity(frame_time);
