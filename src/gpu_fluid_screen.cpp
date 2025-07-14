@@ -1,4 +1,5 @@
 #include "gpu_fluid_screen.hpp"
+#include "logger.hpp"
 #include "phisi_util.hpp"
 #include <cstring>
 
@@ -77,6 +78,7 @@ namespace phisi::fluid {
       &info_image);
     vk::WriteDescriptorSet descriptor_writes[2] = {write_gpu_data, write_image};
     m_device.updateDescriptorSets(2, descriptor_writes, 0, nullptr, m_dldi);               
+    LOG_TRACE("Fluid screen has been allocated.");
   }
 
   void GpuFluidScreen::initBuffer() {
@@ -129,6 +131,7 @@ namespace phisi::fluid {
     
     m_gpu_data.unmap();
     m_gpu_data.destoryStaging();
+    LOG_TRACE("Fluid buffer has been initialized.");
   }
 
   void GpuFluidScreen::compute(vk::CommandBuffer cmd_buffer, float frame_time) {     

@@ -21,12 +21,8 @@ namespace phisi_app {
     m_vk_context.m_fluid_screen.setImage(m_vk_context.m_texture);
     m_vk_context.m_fluid_screen.allocate(m_vk_context.m_texture.m_width, m_vk_context.m_texture.m_height);
     m_vk_context.m_fluid_screen.initBuffer();
-    
-    //allocate FluidScreen
-    //m_fluid_screen.allocate(m_vk_context.m_texture.m_width, m_vk_context.m_texture.m_height);
-    LOG_INFO("Created FluidScreen of size " << m_vk_context.m_texture.m_width << " * " << m_vk_context.m_texture.m_height);
+    LOG_INFO("Created FluidScreen of size " << m_vk_context.m_texture.m_width << " * " << m_vk_context.m_texture.m_height << ".");
   }
-
 
 
   void Application::update() {

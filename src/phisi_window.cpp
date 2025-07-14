@@ -30,8 +30,8 @@ namespace phisi_app {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
     
-    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* vid_mode = glfwGetVideoMode(monitor);
+    GLFWmonitor* const monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* const vid_mode = glfwGetVideoMode(monitor);
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     glfwWindowHint(GLFW_RED_BITS, vid_mode->redBits);
     glfwWindowHint(GLFW_GREEN_BITS, vid_mode->greenBits);

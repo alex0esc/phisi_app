@@ -38,6 +38,7 @@ namespace phisi_app {
     return UINT32_MAX;
   }
 
+  
   inline std::vector<uint32_t> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary); 
     if(!file.is_open()) 
@@ -51,4 +52,56 @@ namespace phisi_app {
     file.close();
     return buffer;
   }
+  
+  /*inline std::string handleInclude(const std::filesystem::path& file_path) {
+    std::ifstream file(file_path, std::ios::binary); 
+    if(!file.is_open()) { 
+      LOG_ERROR("Failed to open file " << file_path.filename() << "!");
+      std::terminate();
+    }
+    std::stringstream str_buffer;
+    str_buffer << file.rdbuf();
+    file.close();
+    
+    std::string shader_code = str_buffer.str();
+    
+    while(true) {
+      size_t index_start = shader_code.find("#include");
+      size_t index = index_start;
+      if(index == std::string::npos)
+        break;
+      index += 8;
+      while(std::isspace(shader_code[index])) {
+        index += 1;
+      }
+      if(shader_code[index] != '"') {
+        LOG_ERROR("Wrong include declaration in file " << file_path.filename() << ".");
+        std::terminate();
+      }
+      index += 1;
+      std::string inc_filename = ""; 
+      while(shader_code[index] != '"') {
+        inc_filename.push_back(shader_code[index]);
+        index += 1;
+      }
+      index += 1;
+      std::filesystem::path inc_path = file_path.parent_path() / inc_filename;
+      std::string inc_shader_code = handleInclude(inc_path); 
+      
+      std::string before_inc = shader_code.substr(0, index_start);
+      std::string after_inc = shader_code.substr(index, shader_code.length());
+      shader_code = before_inc.append(inc_shader_code).append(after_inc);
+    }
+    return shader_code;
+  }*/
+
+
+  /*inline std::vector<uint32_t> readFile(const std::filesystem::path& file_path) {
+    //handle includes 
+    std::string shader_code = handleInclude(file_path);
+    std::vector<uint32_t> buffer(shader_code.length() / sizeof(uint32_t), 0);
+    memcpy(buffer.data(), shader_code.data(), shader_code.size());
+    
+    return buffer;
+  }*/
 }
