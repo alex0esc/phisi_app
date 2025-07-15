@@ -1,7 +1,11 @@
 #include "phisi_app.hpp"
 #include "imgui.h"
 #include "logger.hpp"
+#include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <thread>
 
 namespace phisi_app {
 
@@ -51,6 +55,7 @@ namespace phisi_app {
     //create info window
     ImGui::Begin("General info");
     ImGui::Text("FPS: %f", 1.0 / m_vk_context.m_frame_time);
+    ImGui::SliderInt("Frame Limit", &m_vk_context.m_frame_limit, 1.0, 480.0);
     if (ImGui::Button("Pause/Play")) 
       m_vk_context.m_fluid_screen.m_run_simulation ^= true;
     ImGui::End();
@@ -78,6 +83,8 @@ namespace phisi_app {
   }
 
   void Application::run() {
+        
+    
     while(!m_vk_context.m_window.shouldClose()) {          
       //window events
       glfwPollEvents();

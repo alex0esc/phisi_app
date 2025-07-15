@@ -41,6 +41,7 @@ namespace phisi_app {
     #endif    
     
   public:
+    int m_frame_limit = 100;
     float m_frame_time = 0.01;
     PhisiWindow m_window;
     TextureData m_texture;

@@ -1,5 +1,11 @@
 #pragma once
+#ifdef _WIN32
+#include <windows.h>
+#undef MemoryBarrier
+#endif
+#include <chrono>
 #include <fstream>
+#include <thread>
 #include <vulkan/vulkan.hpp>
 #include <logger.hpp>
 
@@ -51,6 +57,21 @@ namespace phisi_app {
     file.read(reinterpret_cast<char*>(buffer.data()), file_size);
     file.close();
     return buffer;
+  }
+
+  inline void sleep_for(uint64_t micros) {
+    #ifdef _WIN32
+      timeBeginPeriod(4);
+    #endif
+    auto target_time = std::chrono::high_resolution_clock::now() + + std::chrono::microseconds(micros);
+    while(target_time > std::chrono::high_resolution_clock::now()) {
+      auto time_left = target_time - std::chrono::high_resolution_clock::now();
+      if(time_left > std::chrono::milliseconds(4))
+        std::this_thread::sleep_for(std::chrono::milliseconds(4));  
+    }
+    #ifdef _WIN32
+      timeEndPeriod(4);
+    #endif
   }
   
   /*inline std::string handleInclude(const std::filesystem::path& file_path) {

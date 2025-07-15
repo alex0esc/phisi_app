@@ -2,7 +2,9 @@
 #include "imgui_impl_glfw.h"
 #include "logger.hpp"
 #include "phisi_util.hpp"
+#include <chrono>
 #include <cstdint>
+#include <thread>
 #include <vector>
 
 
@@ -295,6 +297,20 @@ namespace phisi_app {
   }  
 
   bool VulkanContext::newFrame() { 
+    //frame time and limit
+    static auto time_last = std::chrono::high_resolution_clock::now();
+    m_frame_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - time_last).count() / 1000000.0;
+        
+    float wait_time = 1.0 / m_frame_limit - m_frame_time; 
+    if (wait_time > 0.0)
+      sleep_for(wait_time * 1000000);
+    
+    
+    auto time_now = std::chrono::high_resolution_clock::now();
+    m_frame_time = std::chrono::duration_cast<std::chrono::microseconds>(time_now - time_last).count() / 1000000.0;
+    time_last = time_now; 
+    
+    
     std::pair fb_size = m_window.getFrameBufferSize();
     if (fb_size.first > 0 && fb_size.second > 0 && (m_swapchain_rebuild || m_window_data.Width != fb_size.first || m_window_data.Height != fb_size.second)) {
       ImGui_ImplVulkan_SetMinImageCount(c_min_image_count);
@@ -313,13 +329,7 @@ namespace phisi_app {
     return true;
   }
 
-  void VulkanContext::render() {
-    static auto time_last = std::chrono::high_resolution_clock::now();
-    auto time_now = std::chrono::high_resolution_clock::now();
-    m_frame_time = std::chrono::duration_cast<std::chrono::microseconds>(time_now - time_last).count() / 1000000.0;
-    time_last = time_now;
-    
-    
+  void VulkanContext::render() {    
     ImGui::Render();
     ImDrawData* main_draw_data = ImGui::GetDrawData();
     const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
