@@ -8,11 +8,8 @@
 namespace phisi::fluid {
 
   class GpuFluidScreen {     
-    uint32_t m_div_iters = 100; //number of iteration to clear divergence
-    float m_gravity = 9.81; //gravity on earth
-    float m_overrelaxation = 1.9; //as close to 2.0 as possible
-    float m_density = 998.0; //for water
-    float m_grid_spacing = 1.0; //1 meter
+    static constexpr float m_density = 998.0; //for water
+    static constexpr float m_grid_spacing = 1.0; //1 meter
     uint32_t m_width = 0;
     uint32_t m_height = 0;    
     bool m_buffer_state = true;
@@ -47,7 +44,12 @@ namespace phisi::fluid {
     float m_pencil_data[3] = {0.0f, 0.0f, 0.0f}; 
     
   public:
+    uint32_t m_div_iters = 100;
+    uint32_t m_rk_steps = 10;
+    float m_gravity = 9.81;
+    float m_overrelaxation = 1.9;
     bool m_run_simulation = true;
+    
     GpuFluidScreen() = default;
     GpuFluidScreen(const GpuFluidScreen& other) = delete;  
     GpuFluidScreen& operator=(const GpuFluidScreen& other) = delete;    
@@ -88,6 +90,17 @@ namespace phisi::fluid {
       m_pencil_mode = 2;
       memcpy(m_pencil_data, direction, 8);
     }
+
+    void setPencilNegativDivergence(float strength) {
+      m_pencil_data[0] = strength;
+      m_pencil_mode = 3;
+    }
+    
+    void setPencilPositivDivergence(float strength) {
+      m_pencil_data[0] = strength;
+      m_pencil_mode = 4;
+    }
+    
     void removePencil() { m_pencil_mode = 0; }
     
     void compute(vk::CommandBuffer cmd_buffer, float frame_time);

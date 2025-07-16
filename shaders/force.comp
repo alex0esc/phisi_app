@@ -10,8 +10,8 @@
 #define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
  
 layout(push_constant) uniform push_constants {
-    uint[4] sim_state;
-    float[4] fluid_constants;
+    uint[5] sim_state;
+    float[3] fluid_constants;
     uint pencil_mode;
     float pencil_radius;
     vec2 pencil_pos;
@@ -67,8 +67,9 @@ void main() {
     }
     
     //manage cursor
-    if(pencil_mode == 0 || distance(vec2(gl_GlobalInvocationID.xy), pencil_pos) > pencil_radius)
-        return;    
+    vec2 direction = pencil_pos - vec2(gl_GlobalInvocationID.xy); 
+    if(pencil_mode == 0 || length(direction) > pencil_radius)
+        return;           
     if(pencil_mode == 1) {
         COLOR(index * 3) = pencil_data[0];
         COLOR(index * 3 + 1) = pencil_data[1];
@@ -78,5 +79,17 @@ void main() {
             VEL_H(index) = pencil_data[0];
         if(y > 1)
             VEL_V(index) = pencil_data[1];
+    } else if(pencil_mode == 3) {
+        direction = direction / pencil_radius * pencil_data[0] * 20;
+        if(x > 1)
+            VEL_H(index) = direction.x;
+        if(y > 1)
+            VEL_V(index) = direction.y;
+    } else if(pencil_mode == 4) {
+        direction = -direction / pencil_radius * pencil_data[0] * 20;
+        if(x > 1)
+            VEL_H(index) = direction.x;
+        if(y > 1)
+            VEL_V(index) = direction.y;
     }
 }

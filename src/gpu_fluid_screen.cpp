@@ -149,10 +149,12 @@ namespace phisi::fluid {
     reinterpret_cast<uint32_t*>(push_constant)[1] = m_height;
     reinterpret_cast<uint32_t*>(push_constant)[2] = m_buffer_state;
     reinterpret_cast<uint32_t*>(push_constant)[3] = m_buffer_state;
-    push_constant[4] = m_gravity;
-    push_constant[5] = m_overrelaxation; 
-    push_constant[6] = frame_time;
-    push_constant[7] = (m_density * m_grid_spacing) / frame_time;    
+    reinterpret_cast<uint32_t*>(push_constant)[4] = m_rk_steps;
+    push_constant[5] = m_gravity;
+    push_constant[6] = m_overrelaxation; 
+    push_constant[7] = frame_time;
+     
+    //pencil
     reinterpret_cast<uint32_t*>(push_constant)[8] = m_pencil_mode;    
     push_constant[9] = m_pencil_radius;
     memcpy(&push_constant[10], m_pencil_coords, 8);

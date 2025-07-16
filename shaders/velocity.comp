@@ -12,8 +12,8 @@
 #define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
  
 layout(push_constant) uniform push_constants {
-    uint[4] sim_state;
-    float[4] fluid_constants;
+    uint[5] sim_state;
+    float[3] fluid_constants;
 };
 layout(std430, binding = 0) buffer storage_buffer {
     float[] fluid_buffer;
@@ -49,65 +49,68 @@ void main() {
         OFFSET_COLOR_2 = 6 * sim_size;
     }
     
+    uint rk_steps = sim_state[4];
     float frame_time = fluid_constants[2];
-    
+         
     //vertical velocity
     if (y > 1) {
+        //first step
         float vel_h = (VEL_H(index) + VEL_H(index + 1) + VEL_H(index - width) + VEL_H(index - width + 1)) / 4.0;
-        vec2 cell_vec = vec2(vel_h, VEL_V(index)) * -frame_time;
+        vec2 cell_vec = vec2(vel_h, VEL_V(index)) * -frame_time / rk_steps;
         vec2 cell_loc = vec2(float(x) + 0.5f, float(y));
-        
         reflect_in_box(width, height, cell_vec, cell_loc);
+        
+        //other steps
+        for(int i = 0; i < rk_steps - 1; i++) {
+            uint x_traced = uint(cell_loc.x);
+            uint y_traced = uint(cell_loc.y);
+            uint cell_index = y_traced * width + x_traced; 
+            float x_inner = cell_loc.x - float(x_traced);
+            float y_inner = cell_loc.y - float(y_traced);
+            cell_vec = vec2(mix(VEL_H_2(cell_index), VEL_H_2(cell_index + 1), x_inner), mix(VEL_V_2(cell_index), VEL_V_2(cell_index + width), y_inner)) * -frame_time / rk_steps;
+            reflect_in_box(width, height, cell_vec, cell_loc);
+        }
           
-        //interpolate and calculate velocity
-        vec2 cell_loc_0 = cell_loc - vec2(0.5, 0.0);
-        uint x_traced = uint(cell_loc_0.x);
-        uint y_traced = uint(cell_loc_0.y);
-        float x_inner = cell_loc_0.x - float(x_traced);
-        float y_inner = cell_loc_0.y - float(y_traced);
-        uint index_1 = (y_traced * width + x_traced);
-        uint index_2 = (y_traced * width + (x_traced + 1));      
-        uint index_3 = ((y_traced + 1) * width + (x_traced + 1));
-        uint index_4 = ((y_traced + 1) * width + x_traced);
-        float weight_1 = (1.0 - x_inner) * (1.0 - y_inner) * WALL(index_1);
-        float weight_2 = x_inner * (1.0 - y_inner) * WALL(index_2);
-        float weight_3 = x_inner * y_inner * WALL(index_3);
-        float weight_4 = (1.0 - x_inner) * y_inner * WALL(index_4);
-        float wall_add = 1.0 / (weight_1 + weight_2 + weight_3 + weight_4);
-        VEL_V_2(index) = wall_add *
-          (VEL_V(index_1) * weight_1 + 
-          VEL_V(index_2) * weight_2 + 
-          VEL_V(index_3) * weight_3 + 
-          VEL_V(index_4) * weight_4);
+        //interpolate
+        uint[4] indices;
+        float[4] weights;
+        float multiplayer;
+        INTERPOLATE(cell_loc - vec2(0.5, 0.0), indices, weights, multiplayer);
+        VEL_V_2(index) = multiplayer *
+          (VEL_V(indices[0]) * weights[0] + 
+          VEL_V(indices[1]) * weights[1] + 
+          VEL_V(indices[2]) * weights[2] + 
+          VEL_V(indices[3]) * weights[3]);
     }
 
     //horizontal velocity
     if (x > 1) {   
+        //first step
         float vel_v = (VEL_V(index - 1) + VEL_V(index) + VEL_V(index + width) + VEL_V(index + width - 1)) / 4.0;
-        vec2 cell_vec = vec2(VEL_H(index), vel_v) * -frame_time;
+        vec2 cell_vec = vec2(VEL_H(index), vel_v) * -frame_time / rk_steps;
         vec2 cell_loc = vec2(float(x), float(y) + 0.5f);
-        
         reflect_in_box(width, height, cell_vec, cell_loc);  
         
-        //interpolate and calculate velocity
-        vec2 cell_loc_0 = cell_loc - vec2(0.0, 0.5);
-        uint x_traced = uint(cell_loc_0.x);
-        uint y_traced = uint(cell_loc_0.y);
-        float x_inner = cell_loc_0.x - float(x_traced);
-        float y_inner = cell_loc_0.y - float(y_traced);
-        uint index_1 = (y_traced * width + x_traced);
-        uint index_2 = (y_traced * width + (x_traced + 1));      
-        uint index_3 = ((y_traced + 1) * width + (x_traced + 1));
-        uint index_4 = ((y_traced + 1) * width + x_traced);
-        float weight_1 = (1.0 - x_inner) * (1.0 - y_inner) * WALL(index_1);
-        float weight_2 = x_inner * (1.0 - y_inner) * WALL(index_2);
-        float weight_3 = x_inner * y_inner * WALL(index_3);
-        float weight_4 = (1.0 - x_inner) * y_inner * WALL(index_4);
-        float wall_add = 1.0 / (weight_1 + weight_2 + weight_3 + weight_4);
-        VEL_H_2(index) = wall_add *
-          (VEL_H(index_1) * weight_1 + 
-          VEL_H(index_2) * weight_2 + 
-          VEL_H(index_3) * weight_3 + 
-          VEL_H(index_4) * weight_4);
+        //other steps
+        for(int i = 0; i < rk_steps - 1; i++) {
+            uint x_traced = uint(cell_loc.x);
+            uint y_traced = uint(cell_loc.y);
+            uint cell_index = y_traced * width + x_traced; 
+            float x_inner = cell_loc.x - float(x_traced);
+            float y_inner = cell_loc.y - float(y_traced);
+            cell_vec = vec2(mix(VEL_H_2(cell_index), VEL_H_2(cell_index + 1), x_inner), mix(VEL_V_2(cell_index), VEL_V_2(cell_index + width), y_inner)) * -frame_time / rk_steps;
+            reflect_in_box(width, height, cell_vec, cell_loc);
+        }
+        
+        //interpolate
+        uint[4] indices;
+        float[4] weights;
+        float multiplayer;
+        INTERPOLATE(cell_loc - vec2(0.0, 0.5), indices, weights, multiplayer);
+        VEL_H_2(index) = multiplayer *
+          (VEL_H(indices[0]) * weights[0] + 
+          VEL_H(indices[1]) * weights[1] + 
+          VEL_H(indices[2]) * weights[2] + 
+          VEL_H(indices[3]) * weights[3]);
     }
 }

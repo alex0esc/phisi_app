@@ -1,11 +1,8 @@
 #include "phisi_app.hpp"
 #include "imgui.h"
 #include "logger.hpp"
-#include <algorithm>
-#include <chrono>
 #include <cmath>
-#include <cstdint>
-#include <thread>
+
 
 namespace phisi_app {
 
@@ -44,33 +41,57 @@ namespace phisi_app {
         direction[0] = (cursor_x - last_cursor_x) / (m_vk_context.m_frame_time * 20);
         direction[1] = (cursor_y - last_cursor_y) / (m_vk_context.m_frame_time * 20);
         m_vk_context.m_fluid_screen.setPencilVelocity(direction);
+      } else if(m_pencil_mode == 2) {
+        m_vk_context.m_fluid_screen.setPencilNegativDivergence(m_div_strength);
+      } else if(m_pencil_mode == 3) {
+        m_vk_context.m_fluid_screen.setPencilPositivDivergence(m_div_strength);
       }
-    } else
+    } else 
       m_vk_context.m_fluid_screen.removePencil();
     last_cursor_x = cursor_x;
     last_cursor_y = cursor_y;
   }
 
-    void Application::imGuiLayoutSetup() {
-    //create info window
-    ImGui::Begin("General info");
-    ImGui::Text("FPS: %f", 1.0 / m_vk_context.m_frame_time);
-    ImGui::SliderInt("Frame Limit", &m_vk_context.m_frame_limit, 1.0, 480.0);
+  
+  void Application::imGuiLayoutSetup() {
+    //general settings
+    ImGui::Begin("General");
     if (ImGui::Button("Pause/Play")) 
       m_vk_context.m_fluid_screen.m_run_simulation ^= true;
+    ImGui::Text("FPS: %f", 1.0 / m_vk_context.m_frame_time);
+    ImGui::SliderInt("Frame Limit", &m_vk_context.m_frame_limit, 1.0, 480.0);
+    ImGui::SliderFloat("Gravity", &m_vk_context.m_fluid_screen.m_gravity, 0.0, 100.0);
+    int value = m_vk_context.m_fluid_screen.m_div_iters;
+    ImGui::SliderInt("Divergence Iterations", &value, 10, 300);
+    m_vk_context.m_fluid_screen.m_div_iters = value;
+    ImGui::SliderFloat("Overrelaxation", &m_vk_context.m_fluid_screen.m_overrelaxation, 1.0, 2.0);
+    value = m_vk_context.m_fluid_screen.m_rk_steps;
+    ImGui::SliderInt("RK Steps", &value, 1, 30);
+    m_vk_context.m_fluid_screen.m_rk_steps = value;
     ImGui::End();
 
-    //create cursor action window
-    ImGui::Begin("Cursor action");
+    
+    //cursor action
+    ImGui::Begin("Cursor");
+    
     ImGui::ColorEdit3("Pencil color", m_pencil_color);
     ImGui::SliderFloat("Pencil size", &m_pencil_radius, 1.0, std::round(m_vk_context.m_texture.m_width / 6.0));
     if(ImGui::RadioButton("Color Mode", m_pencil_mode == 0))
       m_pencil_mode = 0;
     if(ImGui::RadioButton("Velocity Mode", m_pencil_mode  == 1))
       m_pencil_mode = 1;
+    ImGui::SliderFloat("Divergence Strength", &m_div_strength, 0.0, 100.0);
+    if(ImGui::RadioButton("Negativ Divergence", m_pencil_mode  == 2))
+      m_pencil_mode = 2;
+    if(ImGui::RadioButton("Positiv Divergence", m_pencil_mode  == 3))
+      m_pencil_mode = 3;
+    
+    
+    
     ImGui::End();
     
-    //draw texture
+    
+    //draw simulation
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImDrawList* draw_list = ImGui::GetBackgroundDrawList(viewport);
     ImVec2 pos = viewport->Pos;
@@ -81,10 +102,9 @@ namespace phisi_app {
       pos,
       ImVec2(pos.x + size.x, pos.y + size.y));    
   }
+  
 
-  void Application::run() {
-        
-    
+  void Application::run() {    
     while(!m_vk_context.m_window.shouldClose()) {          
       //window events
       glfwPollEvents();

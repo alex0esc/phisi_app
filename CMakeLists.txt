@@ -65,16 +65,16 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/i
 
 #compile shader
 set(COMPILED_SHADERS)
+add_custom_target(ShaderCode ALL DEPENDS ${SHADERS})
 
 foreach(SHADER ${SHADERS})    
 get_filename_component(FILE_NAME ${SHADER} NAME_WE)
 set(OUTPUT_PATH ${SHADER_DIR}/${FILE_NAME}.spv) 
-    
+
 add_custom_command(
-    OUTPUT ${OUTPUT_PATH}
-    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH}
-    DEPENDS ${SHADER}
-    COMMENT "Compiling shader ${FILE_NAME}.")
+    TARGET ShaderCode
+    PRE_BUILD
+    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH} -Os)
     
 list(APPEND COMPILED_SHADERS ${OUTPUT_PATH})
 endforeach()
@@ -92,4 +92,3 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE PROJECT_NAME="${PROJECT_NAME}
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_DEBUG)
 endif()
-

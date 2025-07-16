@@ -10,8 +10,8 @@
 #define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
         
 layout(push_constant) uniform push_constants {
-    uint[4] sim_state;
-    float[4] fluid_constants;
+    uint[5] sim_state;
+    float[3] fluid_constants;
 };
 layout(std430, binding = 0) buffer storage_buffer {
     float[] fluid_buffer;
@@ -19,6 +19,9 @@ layout(std430, binding = 0) buffer storage_buffer {
 layout(binding = 1, rgba8) uniform writeonly image2D fluid_image;
 layout(local_size_x = 16, local_size_y = 16) in;
        
+
+const float max_speed = 8000;
+const float min_speed = -8000;
 
 void main() {
     uint width = sim_state[0];
@@ -52,14 +55,14 @@ void main() {
         OFFSET_COLOR_2 = 6 * sim_size;
     }    
     float overrelaxation = fluid_constants[1];
-    float pressure_constant = fluid_constants[3];
+    float pressure_constant = (998.0 * 1.0) / fluid_constants[2];
     
     float divergence = -VEL_H_2(index) + VEL_H_2(index + 1) - VEL_V_2(index) + VEL_V_2(index + width);
     float sides = WALL(index - 1) + WALL(index + 1) + WALL(index - width) + WALL(index + width);
     divergence = (divergence / sides) * overrelaxation;
-    VEL_H_2(index) += divergence * WALL(index - 1); 
-    VEL_H_2(index + 1) -= divergence * WALL(index + 1);
-    VEL_V_2(index) += divergence * WALL(index - width);
-    VEL_V_2(index + width) -= divergence * WALL(index + width);
+    VEL_H_2(index) = clamp(VEL_H_2(index) + divergence * WALL(index - 1), min_speed, max_speed); 
+    VEL_H_2(index + 1) = clamp(VEL_H_2(index + 1) - divergence * WALL(index + 1), min_speed, max_speed);
+    VEL_V_2(index) = clamp(VEL_V_2(index) + divergence * WALL(index - width), min_speed, max_speed);
+    VEL_V_2(index + width) = clamp(VEL_V_2(index + width) - divergence * WALL(index + width), min_speed, max_speed);
     PRESSURE(index) -= divergence * pressure_constant;        
 }
