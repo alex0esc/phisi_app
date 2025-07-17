@@ -125,7 +125,8 @@ namespace phisi_app {
   void VulkanContext::createDescriptorPool() {
     std::vector<vk::DescriptorPoolSize> sizes = {
       {vk::DescriptorType::eStorageBuffer, 10},
-      {vk::DescriptorType::eCombinedImageSampler, 5}
+      {vk::DescriptorType::eCombinedImageSampler, 5},
+      {vk::DescriptorType::eStorageImage, 5}
     };          
     vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 5, sizes.size(), sizes.data());
     m_descriptor_pool = m_device.get().createDescriptorPoolUnique(create_info);
