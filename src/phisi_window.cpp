@@ -38,7 +38,7 @@ namespace phisi_app {
     if(count <= screen_index) {
       LOG_ERROR("There is no screen with index " << screen_index << "!");
       std::terminate();
-    } 
+    }
     
     //create window
     const GLFWvidmode* const vid_mode = glfwGetVideoMode(monitors[screen_index]);

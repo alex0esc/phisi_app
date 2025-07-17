@@ -1,7 +1,9 @@
 #include "phisi_app.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "logger.hpp"
 #include <cmath>
+#include <cstdlib>
 
 extern int sim_pixel_ratio;
 
@@ -29,6 +31,8 @@ namespace phisi_app {
 
   void Application::update() {
     //manage user input
+    if(ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+      return;
     static double last_cursor_x, last_cursor_y = 0.0;
     double cursor_x, cursor_y;
     glfwGetCursorPos(m_vk_context.m_window.m_window, &cursor_x, &cursor_y); 
@@ -39,13 +43,13 @@ namespace phisi_app {
         m_vk_context.m_fluid_screen.setPencilColor(m_pencil_color);
       } else if(m_pencil_mode == 1) {
         float direction[2] = {0.0, 0.0};
-        direction[0] = (cursor_x - last_cursor_x) / m_vk_context.m_frame_time;
-        direction[1] = (cursor_y - last_cursor_y) / m_vk_context.m_frame_time;
+        direction[0] = (cursor_x - last_cursor_x) / m_vk_context.m_frame_time * m_vel_strength / 100;
+        direction[1] = (cursor_y - last_cursor_y) / m_vk_context.m_frame_time * m_vel_strength / 100;
         m_vk_context.m_fluid_screen.setPencilVelocity(direction);
       } else if(m_pencil_mode == 2) {
-        m_vk_context.m_fluid_screen.setPencilNegativDivergence(m_div_strength);
+        m_vk_context.m_fluid_screen.setPencilNegativDivergence(m_vel_strength);
       } else if(m_pencil_mode == 3) {
-        m_vk_context.m_fluid_screen.setPencilPositivDivergence(m_div_strength);
+        m_vk_context.m_fluid_screen.setPencilPositivDivergence(m_vel_strength);
       }
     } else 
       m_vk_context.m_fluid_screen.removePencil();
@@ -77,11 +81,12 @@ namespace phisi_app {
     
     ImGui::ColorEdit3("Pencil color", m_pencil_color);
     ImGui::SliderFloat("Pencil size", &m_pencil_radius, 1.0, std::round(m_vk_context.m_texture.m_width / 6.0));
+    ImGui::SliderFloat("Velocity Strength", &m_vel_strength, 0.0, 100.0);
     if(ImGui::RadioButton("Color Mode", m_pencil_mode == 0))
       m_pencil_mode = 0;
     if(ImGui::RadioButton("Velocity Mode", m_pencil_mode  == 1))
       m_pencil_mode = 1;
-    ImGui::SliderFloat("Divergence Strength", &m_div_strength, 0.0, 100.0);
+    
     if(ImGui::RadioButton("Negativ Divergence", m_pencil_mode  == 2))
       m_pencil_mode = 2;
     if(ImGui::RadioButton("Positiv Divergence", m_pencil_mode  == 3))
@@ -109,15 +114,20 @@ namespace phisi_app {
     while(!m_vk_context.m_window.shouldClose()) {          
       //window events
       glfwPollEvents();
-      
-      //update app
-      update();
             
+      //new frame
+      if(!m_vk_context.newFrame())
+        continue;
+
+      //GUI
+      imGuiLayoutSetup();
+
+      //update Game state
+      update();
+
       //render frame
-      if(m_vk_context.newFrame()) {
-        imGuiLayoutSetup();
-        m_vk_context.render();
-      } 
+      m_vk_context.render();
+       
     }  
   }
 

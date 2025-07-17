@@ -1,0 +1,83 @@
+[33mcommit ba912b41942c074e2ebc73c6c4e73a4e2474822c[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31mphisi_app/main[m[33m)[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Thu Jul 17 13:10:14 2025 +0200
+
+    Added startup option to chose window and simulation size
+
+[33mcommit c7914c2a9c9a4e2bc17df6509a2ec657410ab5ee[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Thu Jul 17 00:22:43 2025 +0200
+
+    Fixed bugs, and added divergence for pencil
+
+[33mcommit 66f164181c2f7b6401db1d28b2a61a05b4ed6be9[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Tue Jul 15 11:51:16 2025 +0200
+
+    Added FPS limiter
+
+[33mcommit e8d596e499a8cd6ce645457514988ded149ab5dc[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Mon Jul 14 12:58:30 2025 +0200
+
+    Added MacCoormack advection for color
+
+[33mcommit 4abf97e263032d5cb7812b3fb16adab923c56162[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sun Jul 13 00:07:46 2025 +0200
+
+    Moved fluid simulation to gpu
+
+[33mcommit f6c85f7dc23107a8e770ae2d90ff97cbee253068[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sun Jul 6 17:05:25 2025 +0200
+
+    Fluid simulation finished, running on the CPU
+
+[33mcommit 0109565b301b1cb6cb6244c1d5d133d71fa3a894[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Thu Jun 5 03:18:14 2025 +0200
+
+    Working on color advection
+
+[33mcommit 69afadabc843a6e8a5efe32061d4dc704d8cd9cc[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Thu Mar 6 13:41:44 2025 +0100
+
+    Phisi_texture half done
+
+[33mcommit e190317694d7acd114734e0fd0c101a889fea2a9[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Tue Feb 4 07:19:44 2025 +0100
+
+    Setup ImGUI and Vulkan
+
+[33mcommit 7707c302aba4876e9bc7c46bc324eeb1152116d2[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sat Feb 1 15:49:16 2025 +0100
+
+    Added Logger
+
+[33mcommit 3275d041eec2c335139fd28acb597180250aa242[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Thu Jan 9 07:31:09 2025 +0100
+
+    started vulkan setup
+
+[33mcommit 47650beb767782927da4aa95be40cce2113b57d3[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmaster[m[33m)[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sun Nov 24 15:40:25 2024 +0100
+
+    removed build data
+
+[33mcommit 165eeb54e7203c99a4fd04096855994afa6f86f0[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sun Nov 24 15:21:09 2024 +0100
+
+    added gitignore
+
+[33mcommit cf8714b75fb2af2ece34eac73c7e1c50c31f4188[m
+Author: alex0esc <alexeschb@gmail.com>
+Date:   Sun Nov 24 15:19:23 2024 +0100
+
+    created projec

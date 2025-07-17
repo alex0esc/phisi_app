@@ -7,7 +7,7 @@ namespace phisi_app {
     VulkanContext m_vk_context;
     
     uint32_t m_pencil_mode = 0;
-    float m_div_strength = 50;
+    float m_vel_strength = 50;
     float m_pencil_radius = 30.0;
     float m_pencil_color[3] = {0.0, 0.0, 1.0};
     

@@ -4,7 +4,6 @@
 #include "phisi_util.hpp"
 #include <chrono>
 #include <cstdint>
-#include <thread>
 #include <vector>
 
 
@@ -26,9 +25,15 @@ namespace phisi_app {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);   
     layers.push_back("VK_LAYER_KHRONOS_validation");
     #endif
+
+    vk::InstanceCreateFlags flags = vk::InstanceCreateFlags();
+    #ifdef __APPLE__
+    extension.push_back("VK_KHR_portability_enumeration");
+    flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+    #endif
     
     vk::InstanceCreateInfo create_info(
-      vk::InstanceCreateFlags(), &app_info, 
+      flags, &app_info, 
       layers.size(), layers.data(), 
       extensions.size(), extensions.data());
     m_instance = vk::createInstanceUnique(create_info);
