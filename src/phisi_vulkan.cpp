@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 
 namespace phisi_app {
@@ -122,8 +123,11 @@ namespace phisi_app {
   }
 
   void VulkanContext::createDescriptorPool() {
-    vk::DescriptorPoolSize size(vk::DescriptorType::eCombinedImageSampler, c_max_descriptors);          
-    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, c_max_descriptor_sets, 1, &size);
+    std::vector<vk::DescriptorPoolSize> sizes = {
+      {vk::DescriptorType::eStorageBuffer, 10},
+      {vk::DescriptorType::eCombinedImageSampler, 5}
+    };          
+    vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 5, sizes.size(), sizes.data());
     m_descriptor_pool = m_device.get().createDescriptorPoolUnique(create_info);
     LOG_TRACE("Created VkDescriptorPool.");
   }

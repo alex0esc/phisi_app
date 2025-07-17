@@ -10,8 +10,6 @@ namespace phisi_app {
     static constexpr int c_min_image_count = 2;
     static constexpr const char* c_window_title = "Phisi";
     static constexpr vk::ClearValue c_background_color = { vk::ClearColorValue(1.0f, 1.0f, 1.0f, 1.0f) };
-    static constexpr uint32_t c_max_descriptors = 10;
-    static constexpr uint32_t c_max_descriptor_sets = 5;
     
     vk::UniqueInstance m_instance;
     vk::detail::DispatchLoaderDynamic m_dldi;
