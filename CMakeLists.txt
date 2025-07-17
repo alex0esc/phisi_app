@@ -54,7 +54,9 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 #include directories and libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE logger)
 target_link_libraries(${PROJECT_NAME} PRIVATE phisi)
+if(WIN32)
 target_link_libraries(${PROJECT_NAME} PRIVATE winmm)
+endif()
 find_package(Vulkan REQUIRED)
 #find_library(VULKAN_LIBRARY
 #NAMES vulkan vulkan-1)

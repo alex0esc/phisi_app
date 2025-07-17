@@ -28,7 +28,7 @@ namespace phisi_app {
 
     vk::InstanceCreateFlags flags = vk::InstanceCreateFlags();
     #ifdef __APPLE__
-    extension.push_back("VK_KHR_portability_enumeration");
+    extensions.push_back("VK_KHR_portability_enumeration");
     flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
     #endif
     
@@ -38,8 +38,7 @@ namespace phisi_app {
       extensions.size(), extensions.data());
     m_instance = vk::createInstanceUnique(create_info);
     LOG_TRACE("VkInstance created.");
-    vk::detail::DispatchLoaderDynamic dldi(m_instance.get(), vkGetInstanceProcAddr);
-    m_dldi = dldi;
+    m_dldi = vk::detail::DispatchLoaderDynamic(m_instance.get(), vkGetInstanceProcAddr);
     LOG_TRACE("DispatchLoaderDynamic created.");
   } 
   
@@ -104,6 +103,10 @@ namespace phisi_app {
     
     std::vector<const char*> extensions; 
     extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    
+    #ifdef __APPLE__
+    extensions.push_back("VK_KHR_portability_subset");
+    #endif
     
     vk::DeviceCreateInfo create_info(vk::DeviceCreateFlags(), queue_info);
     create_info.setPEnabledExtensionNames(extensions);
