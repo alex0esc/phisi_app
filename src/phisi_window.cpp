@@ -1,10 +1,12 @@
 #include "phisi_window.hpp"
 #include "GLFW/glfw3.h"
 #include "logger.hpp"
+#include "phisi_util.hpp"
 
+extern int screen_index;
 
 namespace phisi_app {
-
+  
   void glfw_error_callback(int error, const char* description) {
     LOG_ERROR("Glfw error " << error << ": " << description); 
   }
@@ -30,26 +32,35 @@ namespace phisi_app {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
     
-    GLFWmonitor* const monitor = glfwGetPrimaryMonitor();
-    const GLFWvidmode* const vid_mode = glfwGetVideoMode(monitor);
+    //chose monitor
+    int count = 0;
+    GLFWmonitor** const monitors = glfwGetMonitors(&count);
+    if(count <= screen_index) {
+      LOG_ERROR("There is no screen with index " << screen_index << "!");
+      std::terminate();
+    } 
+    
+    //create window
+    const GLFWvidmode* const vid_mode = glfwGetVideoMode(monitors[screen_index]);
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
     glfwWindowHint(GLFW_RED_BITS, vid_mode->redBits);
     glfwWindowHint(GLFW_GREEN_BITS, vid_mode->greenBits);
     glfwWindowHint(GLFW_BLUE_BITS, vid_mode->blueBits);
     glfwWindowHint(GLFW_REFRESH_RATE, vid_mode->refreshRate);
     m_window = glfwCreateWindow(vid_mode->width, vid_mode->height, title.c_str(), nullptr, nullptr);
+
+    //set window pos
+    int x_pos, y_pos;
+    glfwGetMonitorPos(monitors[screen_index], &x_pos, &y_pos);
+    glfwSetWindowPos(m_window, x_pos, y_pos);
     LOG_TRACE("GLFW window has been created.");
   }
 
 
   void PhisiWindow::createSurface() {
     VkSurfaceKHR surface;
-    VkResult result = glfwCreateWindowSurface(m_instance, m_window, nullptr, &surface);
-    if (result != 0) {
-      LOG_ERROR("Could not create VkSurface: " << result << ".");
-    } else {
-      m_surface = vk::SurfaceKHR(surface);
-    }
+    checkVkResult(glfwCreateWindowSurface(m_instance, m_window, nullptr, &surface));
+    m_surface = vk::SurfaceKHR(surface);
     LOG_TRACE("VkSurfaceKHR has been created.");
   }
 

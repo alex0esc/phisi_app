@@ -3,6 +3,7 @@
 #include "logger.hpp"
 #include <cmath>
 
+extern int sim_pixel_ratio;
 
 namespace phisi_app {
 
@@ -15,7 +16,7 @@ namespace phisi_app {
     
     //init texture
     std::pair size = m_vk_context.m_window.getFrameBufferSize();
-    m_vk_context.m_texture.initGpuOnly(size.first / 2, size.second / 2);
+    m_vk_context.m_texture.initGpuOnly(size.first / sim_pixel_ratio, size.second / sim_pixel_ratio);
     //m_vk_context.m_texture.allocateStagingBuffer();
     
     //init gpu FluidScreen
@@ -32,14 +33,14 @@ namespace phisi_app {
     double cursor_x, cursor_y;
     glfwGetCursorPos(m_vk_context.m_window.m_window, &cursor_x, &cursor_y); 
     m_vk_context.m_fluid_screen.setPencilRadius(m_pencil_radius);
-    m_vk_context.m_fluid_screen.setPencilPosition(cursor_x / 2.0, cursor_y / 2.0);
+    m_vk_context.m_fluid_screen.setPencilPosition(cursor_x / sim_pixel_ratio, cursor_y / sim_pixel_ratio);
     if (glfwGetMouseButton(m_vk_context.m_window.m_window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {  
       if (m_pencil_mode == 0) {
         m_vk_context.m_fluid_screen.setPencilColor(m_pencil_color);
       } else if(m_pencil_mode == 1) {
         float direction[2] = {0.0, 0.0};
-        direction[0] = (cursor_x - last_cursor_x) / (m_vk_context.m_frame_time * 20);
-        direction[1] = (cursor_y - last_cursor_y) / (m_vk_context.m_frame_time * 20);
+        direction[0] = (cursor_x - last_cursor_x) / m_vk_context.m_frame_time;
+        direction[1] = (cursor_y - last_cursor_y) / m_vk_context.m_frame_time;
         m_vk_context.m_fluid_screen.setPencilVelocity(direction);
       } else if(m_pencil_mode == 2) {
         m_vk_context.m_fluid_screen.setPencilNegativDivergence(m_div_strength);

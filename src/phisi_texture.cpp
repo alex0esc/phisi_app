@@ -87,7 +87,7 @@ namespace phisi_app {
     m_device.bindBufferMemory(m_staging_buffer, m_staging_memory, 0, m_dldi);
     
     m_mapped_memory = m_device.mapMemory(m_staging_memory, 0, m_image_size, vk::MemoryMapFlags(), m_dldi);
-    LOG_TRACE("Storage buffer for texture allocated.");
+    LOG_TRACE("Staging buffer for texture allocated.");
   }
   
   
