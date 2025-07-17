@@ -4,7 +4,7 @@
 namespace phisi {
 
   float Vector2D::length() {
-    return std::sqrt(std::powf(m_x, 2) + std::powf(m_y, 2));
+    return std::sqrt(std::pow(m_x, 2) + std::pow(m_y, 2));
   }
 
   Vector2D Vector2D::operator+(const Vector2D& other) {

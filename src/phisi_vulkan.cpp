@@ -218,7 +218,6 @@ namespace phisi_app {
   
   
   void VulkanContext::renderFrame(ImDrawData* draw_data) {    
-    m_window_data.SemaphoreIndex = (m_window_data.SemaphoreIndex + 1) % m_window_data.SemaphoreCount;
     vk::Semaphore image_acquired_semaphore  = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].ImageAcquiredSemaphore;
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
 
@@ -283,6 +282,7 @@ namespace phisi_app {
       return;
     }
     checkVkResult(result);
+    m_window_data.SemaphoreIndex = (m_window_data.SemaphoreIndex + 1) % m_window_data.SemaphoreCount;
   }
   
 
