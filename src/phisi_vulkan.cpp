@@ -218,6 +218,7 @@ namespace phisi_app {
   
   
   void VulkanContext::renderFrame(ImDrawData* draw_data) {    
+    m_window_data.SemaphoreIndex = (m_window_data.SemaphoreIndex + 1) % m_window_data.SemaphoreCount;
     vk::Semaphore image_acquired_semaphore  = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].ImageAcquiredSemaphore;
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
 
@@ -225,9 +226,10 @@ namespace phisi_app {
     if (value.result == vk::Result::eErrorOutOfDateKHR || value.result == vk::Result::eSuboptimalKHR) {
         m_swapchain_rebuild = true;
         return;
-    } else if (value.result != vk::Result::eSuccess) {
+    } else if (value.result != vk::Result::eSuccess) 
       LOG_ERROR("Aquireing the next image has caused an error.");
-    }
+     
+    m_window_data.FrameIndex = value.value;
 
     ImGui_ImplVulkanH_Frame frame_data = m_window_data.Frames[m_window_data.FrameIndex];
         
@@ -281,8 +283,6 @@ namespace phisi_app {
       return;
     }
     checkVkResult(result);
-    m_window_data.SemaphoreIndex = (m_window_data.SemaphoreIndex + 1) % m_window_data.SemaphoreCount;
-    m_window_data.FrameIndex = (m_window_data.FrameIndex + 1) % m_window_data.ImageCount;
   }
   
 
