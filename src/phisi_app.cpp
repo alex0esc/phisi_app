@@ -1,9 +1,8 @@
 #include "phisi_app.hpp"
 #include "imgui.h"
-#include "imgui_internal.h"
 #include "logger.hpp"
 #include <cmath>
-#include <cstdlib>
+
 
 extern int sim_pixel_ratio;
 

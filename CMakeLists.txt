@@ -76,7 +76,7 @@ set(OUTPUT_PATH ${SHADER_DIR}/${FILE_NAME}.spv)
 add_custom_command(
     TARGET ShaderCode
     PRE_BUILD
-    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH} -Os)
+    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH})
     
 list(APPEND COMPILED_SHADERS ${OUTPUT_PATH})
 endforeach()

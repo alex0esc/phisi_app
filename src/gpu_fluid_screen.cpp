@@ -221,7 +221,7 @@ namespace phisi::fluid {
         subresource_range,
         nullptr);
     cmd_buffer.pipelineBarrier(
-      vk::PipelineStageFlagBits::eFragmentShader, 
+      vk::PipelineStageFlagBits::eComputeShader, 
       vk::PipelineStageFlagBits::eComputeShader, 
       {}, 
       0, nullptr, 
