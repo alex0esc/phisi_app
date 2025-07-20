@@ -2,7 +2,7 @@
 #extension GL_ARB_shading_language_include : require
 #include "functions.glsl"    
 
-     
+
 #define WALL(index) fluid_buffer[OFFSET_WALL + index]
 #define VEL_H(index) fluid_buffer[OFFSET_VEL_H + index]
 #define VEL_H_2(index) fluid_buffer[OFFSET_VEL_H_2 + index]
@@ -12,6 +12,7 @@
 #define COLOR(index) fluid_buffer[OFFSET_COLOR + index]
 #define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
  
+
 layout(push_constant) uniform push_constants {
     uint[5] sim_state;
     float[3] fluid_constants;
@@ -21,7 +22,6 @@ layout(std430, binding = 0) buffer storage_buffer {
 };
 layout(binding = 1, rgba8) uniform writeonly image2D fluid_image;
 layout(local_size_x = 16, local_size_y = 16) in;
-    
 
 
 void main() {
@@ -51,7 +51,7 @@ void main() {
         OFFSET_COLOR_2 = 6 * sim_size;
     }  
         
-    float[3] color;
+    float[3] color = {0, 0, 0};
     uint rk_steps = sim_state[4];
     float frame_time = fluid_constants[2];        
 
