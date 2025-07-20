@@ -1491,7 +1491,7 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
         check_vk_result(err);
 
         IM_ASSERT(wd->Frames == nullptr && wd->FrameSemaphores == nullptr);
-        wd->SemaphoreCount = wd->ImageCount + 1;
+        wd->SemaphoreCount = wd->ImageCount * 1.8;
         wd->Frames = (ImGui_ImplVulkanH_Frame*)IM_ALLOC(sizeof(ImGui_ImplVulkanH_Frame) * wd->ImageCount);
         wd->FrameSemaphores = (ImGui_ImplVulkanH_FrameSemaphores*)IM_ALLOC(sizeof(ImGui_ImplVulkanH_FrameSemaphores) * wd->SemaphoreCount);
         memset((void*)wd->Frames, 0, sizeof(wd->Frames[0]) * wd->ImageCount);

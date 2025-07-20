@@ -229,7 +229,7 @@ namespace phisi_app {
       LOG_ERROR("Aquireing the next image has caused an error.");
      
     m_window_data.FrameIndex = value.value;
-
+    
     ImGui_ImplVulkanH_Frame frame_data = m_window_data.Frames[m_window_data.FrameIndex];
         
     //wait for Frame to be presented
@@ -244,7 +244,7 @@ namespace phisi_app {
     //begin command buffer
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     cmd_buffer.begin(begin_info, m_dldi);
-
+    
     //TODO compute shader here
     m_fluid_screen.compute(cmd_buffer, m_frame_time);
 
@@ -264,10 +264,11 @@ namespace phisi_app {
     
     // Submit command buffer
     cmd_buffer.endRenderPass(m_dldi);
+    cmd_buffer.end(m_dldi);
+
     vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     vk::SubmitInfo submit_info(1, &image_acquired_semaphore, &wait_stage, 1, &cmd_buffer, 1, &render_complete_semaphore);
-    cmd_buffer.end(m_dldi);
-    m_queue.submit({ submit_info }, fence);
+    m_queue.submit({ submit_info }, fence, m_dldi);
   }
 
   void VulkanContext::presentFrame() {
@@ -276,7 +277,7 @@ namespace phisi_app {
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
     vk::SwapchainKHR swapchain = m_window_data.Swapchain;
     vk::PresentInfoKHR present_info(1, &render_complete_semaphore, 1, &swapchain, &m_window_data.FrameIndex);
-    vk::Result result = m_queue.presentKHR(&present_info);
+    vk::Result result = m_queue.presentKHR(&present_info, m_dldi);
     if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
       m_swapchain_rebuild = true;
       return;
