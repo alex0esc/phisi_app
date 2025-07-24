@@ -4,16 +4,40 @@
 #include "phisi_memory.hpp"
 #include "phisi_texture.hpp"
 
-
 namespace phisi::fluid {
 
-  class GpuFluidScreen {     
-    static constexpr float m_density = 998.0; //for water
-    static constexpr float m_grid_spacing = 1.0; //1 meter
-    uint32_t m_width = 0;
-    uint32_t m_height = 0;    
-    bool m_buffer_state = true;
+  
+  struct PushConstantData {
+    static constexpr float density = 998.0; //for water
+    static constexpr float grid_spacing = 1.0; //1 meter
+    
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t buffer_state = true;
+    uint32_t divergence_state = true;
+    uint32_t rk_steps = 10;
+    float gravity = 9.81;
+    float overrelaxation = 1.9; 
+    float frame_time = 0.01;
+    float pressure_constant = 0;
+    float saturation = 1.0;
+    
+    //pencil
+    uint32_t pencil_mode = 0;    
+    float pencil_radius = 30;
+    float pencil_x = 0;
+    float pencil_y = 0;
+    float pencil_data[3];
+  };
+  
 
+  class GpuFluidScreen {     
+    uint32_t m_width;
+    uint32_t m_height;
+    
+    bool m_clear_color = false;
+    bool m_clear_velocity = false;
+    
     vk::Device m_device;
     vk::DescriptorPool m_descriptor_pool;
     vk::detail::DispatchLoaderDynamic m_dldi;
@@ -37,17 +61,10 @@ namespace phisi::fluid {
     vk::Pipeline m_pipeline_velocity;
     vk::Pipeline m_pipeline_divergence;    
     vk::Pipeline m_pipeline_color;
-        
-    uint32_t m_pencil_mode = 0;
-    float m_pencil_radius = 10.0f;
-    float m_pencil_coords[2] = {0.0f, 0.0f};
-    float m_pencil_data[3] = {0.0f, 0.0f, 0.0f}; 
     
   public:
+    PushConstantData m_push_constant;
     uint32_t m_div_iters = 100;
-    uint32_t m_rk_steps = 10;
-    float m_gravity = 9.81;
-    float m_overrelaxation = 1.9;
     bool m_run_simulation = true;
     
     GpuFluidScreen() = default;
@@ -76,32 +93,35 @@ namespace phisi::fluid {
     void initBuffer();
 
     void setPencilRadius(float radius) {
-      m_pencil_radius = radius;
+      m_push_constant.pencil_radius = radius;
     }
     void setPencilPosition(float x, float y) {
-      m_pencil_coords[0] = x;
-      m_pencil_coords[1] = y;
+      m_push_constant.pencil_x = x;
+      m_push_constant.pencil_y = y;
     }
     void setPencilColor(float color[3]) {  
-      m_pencil_mode = 1;
-      memcpy(m_pencil_data, color, 12);
+      m_push_constant.pencil_mode = 1;
+      memcpy(m_push_constant.pencil_data, color, 12);
     }
     void setPencilVelocity(float direction[2]) {
-      m_pencil_mode = 2;
-      memcpy(m_pencil_data, direction, 8);
+      m_push_constant.pencil_mode = 2;
+      memcpy(m_push_constant.pencil_data, direction, 8);
     }
 
     void setPencilNegativDivergence(float strength) {
-      m_pencil_data[0] = strength;
-      m_pencil_mode = 3;
+      m_push_constant.pencil_data[0] = strength;
+      m_push_constant.pencil_mode = 3;
     }
     
     void setPencilPositivDivergence(float strength) {
-      m_pencil_data[0] = strength;
-      m_pencil_mode = 4;
+      m_push_constant.pencil_data[0] = strength;
+      m_push_constant.pencil_mode = 4;
     }
     
-    void removePencil() { m_pencil_mode = 0; }
+    void removePencil() { m_push_constant.pencil_mode = 0; }  
+    
+    void clear_color() { m_clear_color = true; }
+    void clear_velocity() { m_clear_velocity = true; }
     
     void compute(vk::CommandBuffer cmd_buffer, float frame_time);
     void destroy();

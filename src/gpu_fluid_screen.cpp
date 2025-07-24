@@ -27,7 +27,9 @@ namespace phisi::fluid {
   void GpuFluidScreen::allocate(uint32_t width, uint32_t height) {
     m_width = width + 2;
     m_height = height + 2;
-    
+    m_push_constant.width = m_width;
+    m_push_constant.height = m_height;    
+
     m_gpu_data.allocate(m_width * m_height * 4 * 12, 
       vk::MemoryPropertyFlagBits::eDeviceLocal, 
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst);  
@@ -78,8 +80,9 @@ namespace phisi::fluid {
       &info_image);
     vk::WriteDescriptorSet descriptor_writes[2] = {write_gpu_data, write_image};
     m_device.updateDescriptorSets(2, descriptor_writes, 0, nullptr, m_dldi);               
-    LOG_TRACE("Fluid screen has been allocated.");
+    LOG_TRACE("Fluid screen has been allocated."); 
   }
+
 
   void GpuFluidScreen::initBuffer() {
     m_gpu_data.allocateStaging();    
@@ -134,33 +137,24 @@ namespace phisi::fluid {
     LOG_TRACE("Fluid buffer has been initialized.");
   }
 
+
+
+
   void GpuFluidScreen::compute(vk::CommandBuffer cmd_buffer, float frame_time) {     
     if(m_run_simulation == false)
       return;
+
+    m_push_constant.buffer_state = !m_push_constant.buffer_state;
+    m_push_constant.divergence_state = m_push_constant.buffer_state; 
+    m_push_constant.frame_time = frame_time;     
+    m_push_constant.pressure_constant = (m_push_constant.density * m_push_constant.grid_spacing) / frame_time;
+
+    cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstantData), &m_push_constant);
 
     vk::MemoryBarrier barrier(
       vk::AccessFlagBits::eMemoryWrite, 
       vk::AccessFlagBits::eMemoryWrite | vk::AccessFlagBits::eMemoryRead
     );
-
-    m_buffer_state = !m_buffer_state;
-    float push_constant[15];
-    reinterpret_cast<uint32_t*>(push_constant)[0] = m_width;
-    reinterpret_cast<uint32_t*>(push_constant)[1] = m_height;
-    reinterpret_cast<uint32_t*>(push_constant)[2] = m_buffer_state;
-    reinterpret_cast<uint32_t*>(push_constant)[3] = m_buffer_state;
-    reinterpret_cast<uint32_t*>(push_constant)[4] = m_rk_steps;
-    push_constant[5] = m_gravity;
-    push_constant[6] = m_overrelaxation; 
-    push_constant[7] = frame_time;
-     
-    //pencil
-    reinterpret_cast<uint32_t*>(push_constant)[8] = m_pencil_mode;    
-    push_constant[9] = m_pencil_radius;
-    memcpy(&push_constant[10], m_pencil_coords, 8);
-    memcpy(&push_constant[12], m_pencil_data, 12);
-
-    cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push_constant), push_constant);
     
     cmd_buffer.bindDescriptorSets(
       vk::PipelineBindPoint::eCompute,
@@ -178,10 +172,10 @@ namespace phisi::fluid {
       0, nullptr,
       0, nullptr, m_dldi);
 
+
     //advect velocity
     cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_velocity, m_dldi);    
     cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1, m_dldi);
-
     
     cmd_buffer.fillBuffer(m_gpu_data.m_buffer, m_width * m_height * 5 * 4, m_width * m_height * 4, 0);
     cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_divergence, m_dldi);
@@ -195,8 +189,8 @@ namespace phisi::fluid {
       
       //clear divergence
       cmd_buffer.dispatch(((m_width + 1) / 2 + 15) / 16, (m_height + 15) / 16, 1, m_dldi);
-      reinterpret_cast<uint32_t*>(push_constant)[3] = !reinterpret_cast<uint32_t*>(push_constant)[3];
-      cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push_constant), push_constant);
+      m_push_constant.divergence_state = !m_push_constant.divergence_state;
+      cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(m_push_constant), &m_push_constant);
     }
     
     cmd_buffer.pipelineBarrier(
@@ -251,6 +245,7 @@ namespace phisi::fluid {
         1, &dest_barrier, 
       m_dldi);    
   }
+
 
 
   void GpuFluidScreen::destroy() {

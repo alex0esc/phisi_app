@@ -2,7 +2,6 @@
 #extension GL_ARB_shading_language_include : require
 #include "functions.glsl"    
 
-
 #define WALL(index) fluid_buffer[OFFSET_WALL + index]
 #define VEL_H(index) fluid_buffer[OFFSET_VEL_H + index]
 #define VEL_H_2(index) fluid_buffer[OFFSET_VEL_H_2 + index]
@@ -14,8 +13,20 @@
  
 
 layout(push_constant) uniform push_constants {
-    uint[5] sim_state;
-    float[3] fluid_constants;
+    uint width;
+    uint height;
+    uint buffer_state;
+    uint divergence_state;
+    uint rk_steps;
+    float gravity;
+    float overrelaxation; 
+    float frame_time;
+    float pressure_constant;   
+    float saturation;
+    uint pencil_mode;    
+    float pencil_radius;
+    vec2 pencil_pos;
+    float pencil_data[3];
 };
 layout(std430, binding = 0) buffer storage_buffer {
     float[] fluid_buffer;
@@ -25,8 +36,6 @@ layout(local_size_x = 16, local_size_y = 16) in;
 
 
 void main() {
-    uint width = sim_state[0];
-    uint height = sim_state[1];
     uint x = gl_GlobalInvocationID.x + 1;
     uint y = gl_GlobalInvocationID.y + 1;
     if(x >= width - 1 || y >= height - 1)
@@ -42,7 +51,7 @@ void main() {
     uint OFFSET_PRESSURE = 5 * sim_size;
     uint OFFSET_COLOR = 6 * sim_size;
     uint OFFSET_COLOR_2 = 9 * sim_size;
-    if(sim_state[2] == 0) {    
+    if(buffer_state == 0) {    
         OFFSET_VEL_H = 2 * sim_size;
         OFFSET_VEL_H_2 = 1 * sim_size;
         OFFSET_VEL_V = 4 * sim_size;
@@ -52,9 +61,7 @@ void main() {
     }  
         
     float[3] color = {0, 0, 0};
-    uint rk_steps = sim_state[4];
-    float frame_time = fluid_constants[2];        
-
+    
     //first step back
     vec2 cell_vec = vec2(VEL_H_2(index) + VEL_H_2(index + 1) / 2.0, VEL_V_2(index) + VEL_V_2(index + width) / 2.0) * -frame_time / rk_steps; 
     vec2 cell_loc = vec2(float(x) + 0.5, float(y) + 0.5);
@@ -85,10 +92,17 @@ void main() {
         COLOR(indices[3] * 3 + i) * weights[3]);
     }
      
+
+    //saturation
+    vec3 color_vec = vec3(color[0], color[1], color[2]);
+    float gray = dot(color_vec, vec3(0.299, 0.587, 0.114));
+    color_vec = mix(vec3(gray), color_vec, saturation);
+    
+    
     //copy image
     COLOR_2(index * 3) = color[0];
     COLOR_2(index * 3 + 1) = color[1];
     COLOR_2(index * 3 + 2) = color[2];
-    vec4 img_color = vec4(color[0], color[1], color[2], 1.0);
+    vec4 img_color = vec4(color_vec, 1.0);
     imageStore(fluid_image, ivec2(gl_GlobalInvocationID.xy), img_color);
 }

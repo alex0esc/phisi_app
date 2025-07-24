@@ -8,14 +8,24 @@
 #define PRESSURE(index) fluid_buffer[OFFSET_PRESSURE + index]
 #define COLOR(index) fluid_buffer[OFFSET_COLOR + index]
 #define COLOR_2(index) fluid_buffer[OFFSET_COLOR_2 + index]
- 
+          
+
 layout(push_constant) uniform push_constants {
-    uint[5] sim_state;
-    float[3] fluid_constants;
-    uint pencil_mode;
+    uint width;
+    uint height;
+    uint buffer_state;
+    uint divergence_state;
+    uint rk_steps;
+    float gravity;
+    float overrelaxation; 
+    float frame_time;
+    float pressure_constant;   
+    float saturation;
+    
+    uint pencil_mode;    
     float pencil_radius;
     vec2 pencil_pos;
-    float[3] pencil_data;
+    float pencil_data[3];
 };
 layout(std430, binding = 0) buffer storage_buffer {
     float[] fluid_buffer;
@@ -25,8 +35,6 @@ layout(local_size_x = 16, local_size_y = 16) in;
        
 
 void main() {
-    uint width = sim_state[0];
-    uint height = sim_state[1];
     uint x = gl_GlobalInvocationID.x + 1;
     uint y = gl_GlobalInvocationID.y + 1;
     if(x >= width - 1 || y >= height - 1)
@@ -42,7 +50,7 @@ void main() {
     uint OFFSET_PRESSURE = 5 * sim_size;
     uint OFFSET_COLOR = 6 * sim_size;
     uint OFFSET_COLOR_2 = 9 * sim_size;
-    if(sim_state[2] == 0) {    
+    if(buffer_state == 0) {    
         OFFSET_VEL_H = 2 * sim_size;
         OFFSET_VEL_H_2 = 1 * sim_size;
         OFFSET_VEL_V = 4 * sim_size;
@@ -52,17 +60,19 @@ void main() {
     }
     
     //TODO fluid flowing in 
-    if(y == 1 && x > width * 0.48 && x < width * 0.52) {
+    if(x == 1 && y > height * 0.48 && y < height * 0.52) {
         COLOR(index * 3) = 1.0;    
         COLOR(index * 3 + 1) = 0.0;
         COLOR(index * 3 + 2) = 0.0;
-        VEL_V(index) = 20.0;
+        VEL_H(index) = 100.0;
+    }
+    
+    if(y == height - 1 && x > width * 0.48 && x < width * 0.52) {
+        VEL_V(index) = -100.0;
     }
     
     //apply gravity
     if(y > 1) {
-        float gravity = fluid_constants[0];
-        float frame_time = fluid_constants[2];
         VEL_V(index) += gravity * frame_time;
     }
     

@@ -64,14 +64,17 @@ namespace phisi_app {
       m_vk_context.m_fluid_screen.m_run_simulation ^= true;
     ImGui::Text("FPS: %f", 1.0 / m_vk_context.m_frame_time);
     ImGui::SliderInt("Frame Limit", &m_vk_context.m_frame_limit, 1.0, 480.0);
-    ImGui::SliderFloat("Gravity", &m_vk_context.m_fluid_screen.m_gravity, 0.0, 100.0);
+    ImGui::SliderFloat("Gravity", &m_vk_context.m_fluid_screen.m_push_constant.gravity, 0.0, 100.0);
     int value = m_vk_context.m_fluid_screen.m_div_iters;
     ImGui::SliderInt("Divergence Iterations", &value, 10, 300);
     m_vk_context.m_fluid_screen.m_div_iters = value;
-    ImGui::SliderFloat("Overrelaxation", &m_vk_context.m_fluid_screen.m_overrelaxation, 1.0, 2.0);
-    value = m_vk_context.m_fluid_screen.m_rk_steps;
+    ImGui::SliderFloat("Overrelaxation", &m_vk_context.m_fluid_screen.m_push_constant.overrelaxation, 1.0, 2.0);
+    value = m_vk_context.m_fluid_screen.m_push_constant.rk_steps;
     ImGui::SliderInt("RK Steps", &value, 1, 30);
-    m_vk_context.m_fluid_screen.m_rk_steps = value;
+    m_vk_context.m_fluid_screen.m_push_constant.rk_steps = value;
+    static float f_value = m_vk_context.m_fluid_screen.m_push_constant.saturation;
+    ImGui::SliderFloat("Saturation", &f_value, 0.0, 10.0);
+    m_vk_context.m_fluid_screen.m_push_constant.saturation = std::pow(f_value, 2);
     ImGui::End();
 
     
