@@ -1,12 +1,10 @@
 #include <cstdint>
 #include <cstring>
-#include <vulkan/vulkan.hpp>
-#include "phisi_memory.hpp"
 #include "phisi_texture.hpp"
+#include "phisi_memory.hpp"
 
-namespace phisi::fluid {
+namespace phisi_app {
 
-  
   struct PushConstantData {
     static constexpr float density = 998.0; //for water
     static constexpr float grid_spacing = 1.0; //1 meter
@@ -38,16 +36,13 @@ namespace phisi::fluid {
     bool m_clear_color = false;
     bool m_clear_velocity = false;
     
-    vk::Device m_device;
-    vk::DescriptorPool m_descriptor_pool;
-    vk::detail::DispatchLoaderDynamic m_dldi;
-    vk::Image m_image;
-    vk::ImageView m_image_view;
-    vk::Sampler m_sampler;
-    vk::CommandPool m_command_pool;
-    vk::Queue m_queue;
+    VulkanContext* m_context;
+    TextureData* m_texture;
+    PhisiMemory m_memory;
 
-    phisi_app::PhisiMemory m_gpu_data;
+    vk::Fence m_fence;
+    vk::CommandPool m_cmd_pool;
+    
     vk::DescriptorSetLayout m_descriptor_layout;
     vk::DescriptorSet m_descriptor_set;
     vk::PipelineLayout m_pipeline_layout;
@@ -62,6 +57,8 @@ namespace phisi::fluid {
     vk::Pipeline m_pipeline_divergence;    
     vk::Pipeline m_pipeline_color;
     
+    void compute(vk::CommandBuffer cmd_buffer);
+    
   public:
     PushConstantData m_push_constant;
     uint32_t m_div_iters = 100;
@@ -71,60 +68,44 @@ namespace phisi::fluid {
     GpuFluidScreen(const GpuFluidScreen& other) = delete;  
     GpuFluidScreen& operator=(const GpuFluidScreen& other) = delete;    
 
-    void initVk(vk::PhysicalDevice physical_device, vk::Device device, 
-      vk::DescriptorPool descirptor_pool, vk::detail::DispatchLoaderDynamic dldi,
-      vk::CommandPool cmd_pool, vk::Queue queue) {
-      m_device = device;
-      m_descriptor_pool = descirptor_pool;
-      m_dldi = dldi;
-      m_command_pool = cmd_pool;
-      m_queue = queue;
-      m_gpu_data.initVk(physical_device, device, dldi);
+    void initVk(VulkanContext* context, TextureData* texture) {
+      m_memory.initVk(context);
+      m_context = context;
+      m_texture = texture;
     }      
     
-    ///Image it is rendering to.
-    void setImage(phisi_app::TextureData& texture_data) {
-      m_image = texture_data.m_image;
-      m_sampler = texture_data.m_sampler;
-      m_image_view = texture_data.m_image_view;
-    }
-    
-    void allocate(uint32_t width, uint32_t height);
+    void allocate();
     void initBuffer();
+    void simulate();
+    void destroy();
 
     void setPencilRadius(float radius) {
       m_push_constant.pencil_radius = radius;
     }
+    
     void setPencilPosition(float x, float y) {
       m_push_constant.pencil_x = x;
       m_push_constant.pencil_y = y;
     }
+    
     void setPencilColor(float color[3]) {  
       m_push_constant.pencil_mode = 1;
       memcpy(m_push_constant.pencil_data, color, 12);
     }
+    
     void setPencilVelocity(float direction[2]) {
       m_push_constant.pencil_mode = 2;
       memcpy(m_push_constant.pencil_data, direction, 8);
     }
-
-    void setPencilNegativDivergence(float strength) {
+    
+    void setPencilDivergence(float strength) {
       m_push_constant.pencil_data[0] = strength;
       m_push_constant.pencil_mode = 3;
-    }
-    
-    void setPencilPositivDivergence(float strength) {
-      m_push_constant.pencil_data[0] = strength;
-      m_push_constant.pencil_mode = 4;
     }
     
     void removePencil() { m_push_constant.pencil_mode = 0; }  
     
     void clear_color() { m_clear_color = true; }
     void clear_velocity() { m_clear_velocity = true; }
-    
-    void compute(vk::CommandBuffer cmd_buffer, float frame_time);
-    void destroy();
   };
-  
 }

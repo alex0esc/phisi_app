@@ -1,9 +1,9 @@
 #include "gpu_fluid_screen.hpp"
 #include "logger.hpp"
 #include "phisi_util.hpp"
-#include <cstring>
+#include <vulkan/vulkan_enums.hpp>
 
-namespace phisi::fluid {
+namespace phisi_app {
   
   vk::ShaderModule create_module(vk::Device device, vk::detail::DispatchLoaderDynamic dldi, const std::string& path) {
     std::vector<uint32_t> shader_data = phisi_app::readFile(path);
@@ -24,19 +24,25 @@ namespace phisi::fluid {
     return phisi_app::checkVkResult(device.createComputePipelines(VK_NULL_HANDLE, pipeline_infos, nullptr, dldi)).front();
   }
   
-  void GpuFluidScreen::allocate(uint32_t width, uint32_t height) {
-    m_width = width + 2;
-    m_height = height + 2;
+  void GpuFluidScreen::allocate() {
+    m_width = m_texture->m_width + 2;
+    m_height = m_texture->m_height + 2;
     m_push_constant.width = m_width;
     m_push_constant.height = m_height;    
 
-    m_gpu_data.allocate(m_width * m_height * 4 * 12, 
+    vk::FenceCreateInfo fence_info(vk::FenceCreateFlagBits::eSignaled);
+    m_fence = m_context->m_device.createFence(fence_info, nullptr, m_context->m_dldi);
+    
+    vk::CommandPoolCreateInfo cmd_pool_info(vk::CommandPoolCreateFlagBits::eTransient, m_context->m_compute_queue_family_index);
+    m_cmd_pool = m_context->m_device.createCommandPool(cmd_pool_info, nullptr, m_context->m_dldi);
+
+    m_memory.allocate(m_width * m_height * 4 * 12, 
       vk::MemoryPropertyFlagBits::eDeviceLocal, 
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst);  
-    m_module_force = create_module(m_device, m_dldi, "shaders/force.spv");
-    m_module_velocity = create_module(m_device, m_dldi, "shaders/velocity.spv");
-    m_module_divergence = create_module(m_device, m_dldi, "shaders/divergence.spv");
-    m_module_color = create_module(m_device, m_dldi, "shaders/color.spv");
+    m_module_force = create_module(m_context->m_device, m_context->m_dldi, "shaders/force.spv");
+    m_module_velocity = create_module(m_context->m_device, m_context->m_dldi, "shaders/velocity.spv");
+    m_module_divergence = create_module(m_context->m_device, m_context->m_dldi, "shaders/divergence.spv");
+    m_module_color = create_module(m_context->m_device, m_context->m_dldi, "shaders/color.spv");
          
     vk::DescriptorSetLayoutBinding bindings[2];
     bindings[0] = vk::DescriptorSetLayoutBinding(
@@ -46,21 +52,21 @@ namespace phisi::fluid {
 
     vk::DescriptorSetLayoutCreateInfo descriptor_layout_info(
       vk::DescriptorSetLayoutCreateFlags(), 2, bindings);
-    m_descriptor_layout = m_device.createDescriptorSetLayout(descriptor_layout_info, nullptr, m_dldi);
+    m_descriptor_layout = m_context->m_device.createDescriptorSetLayout(descriptor_layout_info, nullptr, m_context->m_dldi);
     vk::PushConstantRange range = vk::PushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, 128);
     vk::PipelineLayoutCreateInfo layout_info(vk::PipelineLayoutCreateFlags(), 1, &m_descriptor_layout, 1, &range);
-    m_pipeline_layout = m_device.createPipelineLayout(layout_info, nullptr, m_dldi);
+    m_pipeline_layout = m_context->m_device.createPipelineLayout(layout_info, nullptr, m_context->m_dldi);
     
-    m_pipeline_force = create_pipeline(m_device, m_dldi, m_module_force, m_pipeline_layout);
-    m_pipeline_velocity = create_pipeline(m_device, m_dldi, m_module_velocity, m_pipeline_layout);
-    m_pipeline_divergence = create_pipeline(m_device, m_dldi, m_module_divergence, m_pipeline_layout);
-    m_pipeline_color = create_pipeline(m_device, m_dldi, m_module_color, m_pipeline_layout);
+    m_pipeline_force = create_pipeline(m_context->m_device, m_context->m_dldi, m_module_force, m_pipeline_layout);
+    m_pipeline_velocity = create_pipeline(m_context->m_device, m_context->m_dldi, m_module_velocity, m_pipeline_layout);
+    m_pipeline_divergence = create_pipeline(m_context->m_device, m_context->m_dldi, m_module_divergence, m_pipeline_layout);
+    m_pipeline_color = create_pipeline(m_context->m_device, m_context->m_dldi, m_module_color, m_pipeline_layout);
     
-    vk::DescriptorSetAllocateInfo alc_info(m_descriptor_pool, 1, &m_descriptor_layout);
-    m_descriptor_set = m_device.allocateDescriptorSets(alc_info, m_dldi).front();
+    vk::DescriptorSetAllocateInfo alc_info(m_context->m_descriptor_pool, 1, &m_descriptor_layout);
+    m_descriptor_set = m_context->m_device.allocateDescriptorSets(alc_info, m_context->m_dldi).front();
   
-    vk::DescriptorBufferInfo info_gpu_data(m_gpu_data.m_buffer, 0, vk::WholeSize);    
-    vk::DescriptorImageInfo info_image(m_sampler, m_image_view, vk::ImageLayout::eGeneral);
+    vk::DescriptorBufferInfo info_gpu_data(m_memory.m_buffer, 0, vk::WholeSize);    
+    vk::DescriptorImageInfo info_image(m_texture->m_sampler, m_texture->m_image_view, vk::ImageLayout::eGeneral);
     
     vk::WriteDescriptorSet write_gpu_data(
       m_descriptor_set, 
@@ -79,30 +85,30 @@ namespace phisi::fluid {
       vk::DescriptorType::eStorageImage, 
       &info_image);
     vk::WriteDescriptorSet descriptor_writes[2] = {write_gpu_data, write_image};
-    m_device.updateDescriptorSets(2, descriptor_writes, 0, nullptr, m_dldi);               
+    m_context->m_device.updateDescriptorSets(2, descriptor_writes, 0, nullptr, m_context->m_dldi);               
     LOG_TRACE("Fluid screen has been allocated."); 
   }
 
 
   void GpuFluidScreen::initBuffer() {
-    m_gpu_data.allocateStaging();    
-    m_gpu_data.map();
+    m_memory.allocateStaging();    
+    m_memory.map();
         
-    memset(m_gpu_data.m_mapped_memory, 0, m_gpu_data.m_size);
+    memset(m_memory.m_mapped_memory, 0, m_memory.m_size);
     for(uint32_t y = 1; y < m_height - 1; y++) { for(uint32_t x = 1; x < m_width - 1; x++) {
-      static_cast<float*>(m_gpu_data.m_mapped_memory)[y * m_width + x] = 1.0; 
+      static_cast<float*>(m_memory.m_mapped_memory)[y * m_width + x] = 1.0; 
     }}
 
     vk::CommandBufferAllocateInfo cmd_alc_info(
-      m_command_pool, 
+      m_cmd_pool, 
       vk::CommandBufferLevel::ePrimary, 
       1);
     vk::CommandBuffer cmd_buffer;
-    phisi_app::checkVkResult(m_device.allocateCommandBuffers(&cmd_alc_info, &cmd_buffer));
+    phisi_app::checkVkResult(m_context->m_device.allocateCommandBuffers(&cmd_alc_info, &cmd_buffer));
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    cmd_buffer.begin(begin_info, m_dldi);
+    cmd_buffer.begin(begin_info, m_context->m_dldi);
 
-    m_gpu_data.uploadStaging(cmd_buffer);
+    m_memory.uploadStaging(cmd_buffer);
     
     vk::ImageSubresourceRange subresource_range(
       vk::ImageAspectFlagBits::eColor, 
@@ -114,7 +120,7 @@ namespace phisi::fluid {
       vk::ImageLayout::eShaderReadOnlyOptimal,
       vk::QueueFamilyIgnored,
       vk::QueueFamilyIgnored,
-      m_image,
+      m_texture->m_image,
       subresource_range,
       nullptr);
     cmd_buffer.pipelineBarrier(
@@ -123,31 +129,49 @@ namespace phisi::fluid {
       {}, 
       0, nullptr, 
       0, nullptr, 
-      1, &src_barrier, m_dldi);
+      1, &src_barrier, m_context->m_dldi);
 
-    cmd_buffer.end(m_dldi);
+    cmd_buffer.end(m_context->m_dldi);
 
     vk::SubmitInfo submit_info(0, nullptr, nullptr, 1, &cmd_buffer);
-    m_queue.submit(submit_info);
-    m_queue.waitIdle(m_dldi);
-    m_device.freeCommandBuffers(m_command_pool, 1 , &cmd_buffer, m_dldi);
+    m_context->m_compute_queue.submit(submit_info);
+    m_context->m_compute_queue.waitIdle(m_context->m_dldi);
+    m_context->m_device.freeCommandBuffers(m_cmd_pool, 1, &cmd_buffer, m_context->m_dldi);
     
-    m_gpu_data.unmap();
-    m_gpu_data.destoryStaging();
+    m_memory.unmap();
+    m_memory.destoryStaging();
     LOG_TRACE("Fluid buffer has been initialized.");
   }
 
+  
+  void GpuFluidScreen::simulate() {
+    checkVkResult(m_context->m_device.waitForFences(1, &m_fence, true, UINT64_MAX, m_context->m_dldi));
+    checkVkResult(m_context->m_device.resetFences(1, &m_fence, m_context->m_dldi));
+    m_context->m_device.resetCommandPool(m_cmd_pool);
 
-
-
-  void GpuFluidScreen::compute(vk::CommandBuffer cmd_buffer, float frame_time) {     
     if(m_run_simulation == false)
       return;
+    
+    vk::CommandBufferAllocateInfo alc_info(m_cmd_pool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::CommandBuffer cmd_buffer = m_context->m_device.allocateCommandBuffers(alc_info, m_context->m_dldi).front();
+    
+    vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    cmd_buffer.begin(begin_info, m_context->m_dldi);
+    
+    compute(cmd_buffer);
+    
+    cmd_buffer.end(m_context->m_dldi);
+    
+    vk::PipelineStageFlags stage = vk::PipelineStageFlagBits::eComputeShader;
+    vk::SubmitInfo submit_info(0, nullptr, &stage, 1, &cmd_buffer);
+    checkVkResult(m_context->m_compute_queue.submit(1, &submit_info, m_fence, m_context->m_dldi));
+  }
 
+  void GpuFluidScreen::compute(vk::CommandBuffer cmd_buffer) {     
     m_push_constant.buffer_state = !m_push_constant.buffer_state;
     m_push_constant.divergence_state = m_push_constant.buffer_state; 
-    m_push_constant.frame_time = frame_time;     
-    m_push_constant.pressure_constant = (m_push_constant.density * m_push_constant.grid_spacing) / frame_time;
+    m_push_constant.frame_time = m_context->m_frame_time;     
+    m_push_constant.pressure_constant = (m_push_constant.density * m_push_constant.grid_spacing) / m_context->m_frame_time;
 
     cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstantData), &m_push_constant);
 
@@ -159,36 +183,36 @@ namespace phisi::fluid {
     cmd_buffer.bindDescriptorSets(
       vk::PipelineBindPoint::eCompute,
       m_pipeline_layout, 0, 
-      m_descriptor_set, nullptr, m_dldi);   
+      m_descriptor_set, nullptr, m_context->m_dldi);   
 
     //apply force
-    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_force, m_dldi);        
-    cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1, m_dldi);
+    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_force, m_context->m_dldi);        
+    cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1, m_context->m_dldi);
     
     cmd_buffer.pipelineBarrier(
       vk::PipelineStageFlagBits::eComputeShader, 
       vk::PipelineStageFlagBits::eComputeShader,
       vk::DependencyFlags(), 1, &barrier,
       0, nullptr,
-      0, nullptr, m_dldi);
+      0, nullptr, m_context->m_dldi);
 
 
     //advect velocity
-    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_velocity, m_dldi);    
-    cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1, m_dldi);
+    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_velocity, m_context->m_dldi);    
+    cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1, m_context->m_dldi);
     
-    cmd_buffer.fillBuffer(m_gpu_data.m_buffer, m_width * m_height * 5 * 4, m_width * m_height * 4, 0);
-    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_divergence, m_dldi);
+    cmd_buffer.fillBuffer(m_memory.m_buffer, m_width * m_height * 5 * 4, m_width * m_height * 4, 0);
+    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_divergence, m_context->m_dldi);
     for(uint32_t i = 0; i < m_div_iters; i++) {         
       cmd_buffer.pipelineBarrier(
       vk::PipelineStageFlagBits::eComputeShader, 
       vk::PipelineStageFlagBits::eComputeShader,
       vk::DependencyFlags(), 1, &barrier,
       0, nullptr,
-      0, nullptr, m_dldi);
+      0, nullptr, m_context->m_dldi);
       
       //clear divergence
-      cmd_buffer.dispatch(((m_width + 1) / 2 + 15) / 16, (m_height + 15) / 16, 1, m_dldi);
+      cmd_buffer.dispatch(((m_width + 1) / 2 + 15) / 16, (m_height + 15) / 16, 1, m_context->m_dldi);
       m_push_constant.divergence_state = !m_push_constant.divergence_state;
       cmd_buffer.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(m_push_constant), &m_push_constant);
     }
@@ -198,7 +222,7 @@ namespace phisi::fluid {
       vk::PipelineStageFlagBits::eComputeShader,
       vk::DependencyFlags(), 1, &barrier,
       0, nullptr,
-      0, nullptr, m_dldi);    
+      0, nullptr, m_context->m_dldi);    
 
 
     vk::ImageSubresourceRange subresource_range(
@@ -211,7 +235,7 @@ namespace phisi::fluid {
         vk::ImageLayout::eGeneral,
         vk::QueueFamilyIgnored,
         vk::QueueFamilyIgnored,
-        m_image,
+        m_texture->m_image,
         subresource_range,
         nullptr);
     cmd_buffer.pipelineBarrier(
@@ -220,10 +244,10 @@ namespace phisi::fluid {
       {}, 
       0, nullptr, 
       0, nullptr, 
-      1, &src_barrier, m_dldi);     
+      1, &src_barrier, m_context->m_dldi);     
 
     //advect color
-    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_color, m_dldi);    
+    cmd_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_pipeline_color, m_context->m_dldi);    
     cmd_buffer.dispatch((m_width + 15.0) / 16.0, (m_height + 15.0) / 16.0, 1);
     
     vk::ImageMemoryBarrier dest_barrier(
@@ -233,32 +257,35 @@ namespace phisi::fluid {
         vk::ImageLayout::eShaderReadOnlyOptimal,
         vk::QueueFamilyIgnored,
         vk::QueueFamilyIgnored,
-        m_image,
+        m_texture->m_image,
         subresource_range,
         nullptr);
       cmd_buffer.pipelineBarrier(
         vk::PipelineStageFlagBits::eComputeShader, 
-        vk::PipelineStageFlagBits::eFragmentShader, 
+        vk::PipelineStageFlagBits::eComputeShader, 
         {}, 
         0, nullptr, 
         0, nullptr, 
         1, &dest_barrier, 
-      m_dldi);    
+      m_context->m_dldi);    
   }
 
 
 
   void GpuFluidScreen::destroy() {
-    m_device.destroyPipeline(m_pipeline_force);
-    m_device.destroyPipeline(m_pipeline_velocity);
-    m_device.destroyPipeline(m_pipeline_divergence);
-    m_device.destroyPipeline(m_pipeline_color);
-    m_device.destroyPipelineLayout(m_pipeline_layout);
-    m_device.destroyDescriptorSetLayout(m_descriptor_layout);
-    m_device.destroyShaderModule(m_module_force);
-    m_device.destroyShaderModule(m_module_velocity);
-    m_device.destroyShaderModule(m_module_divergence);
-    m_device.destroyShaderModule(m_module_color);
-    m_gpu_data.destroy();
+    m_context->m_device.waitIdle(m_context->m_dldi);
+    m_context->m_device.destroyPipeline(m_pipeline_force);
+    m_context->m_device.destroyPipeline(m_pipeline_velocity);
+    m_context->m_device.destroyPipeline(m_pipeline_divergence);
+    m_context->m_device.destroyPipeline(m_pipeline_color);
+    m_context->m_device.destroyPipelineLayout(m_pipeline_layout);
+    m_context->m_device.destroyDescriptorSetLayout(m_descriptor_layout);
+    m_context->m_device.destroyShaderModule(m_module_force);
+    m_context->m_device.destroyShaderModule(m_module_velocity);
+    m_context->m_device.destroyShaderModule(m_module_divergence);
+    m_context->m_device.destroyShaderModule(m_module_color);
+    m_memory.destroy();
+    m_context->m_device.destroyCommandPool(m_cmd_pool);
+    m_context->m_device.destroyFence(m_fence);
   }
 }

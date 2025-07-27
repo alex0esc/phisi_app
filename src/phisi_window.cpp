@@ -1,5 +1,4 @@
 #include "phisi_window.hpp"
-#include "GLFW/glfw3.h"
 #include "logger.hpp"
 #include "phisi_util.hpp"
 
@@ -19,11 +18,6 @@ namespace phisi_app {
       LOG_ERROR("GLFW does not support Vulkan.");
     }
     glfwSetErrorCallback(glfw_error_callback);
-  }
-
-
-  void PhisiWindow::setInstance(vk::Instance instance) {
-    m_instance = instance;
   }
 
   
@@ -57,17 +51,11 @@ namespace phisi_app {
   }
 
 
-  void PhisiWindow::createSurface() {
+  void PhisiWindow::createSurface(vk::Instance instance) {
     VkSurfaceKHR surface;
-    checkVkResult(glfwCreateWindowSurface(m_instance, m_window, nullptr, &surface));
+    checkVkResult(glfwCreateWindowSurface(instance, m_window, nullptr, &surface));
     m_surface = vk::SurfaceKHR(surface);
     LOG_TRACE("VkSurfaceKHR has been created.");
-  }
-
-
-  void PhisiWindow::create(std::string title) {
-    createWindow(title);  
-    createSurface();
   }
 
   std::pair<int, int> PhisiWindow::getFrameBufferSize() {

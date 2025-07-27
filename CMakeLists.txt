@@ -46,14 +46,12 @@ add_subdirectory(${GLFW_DIR} binary_dir EXCLUDE_FROM_ALL)
 
 #submodules
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/logger)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/phisi)
 
 #compiltaion
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 #include directories and libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE logger)
-target_link_libraries(${PROJECT_NAME} PRIVATE phisi)
 if(WIN32)
 target_link_libraries(${PROJECT_NAME} PRIVATE winmm)
 endif()

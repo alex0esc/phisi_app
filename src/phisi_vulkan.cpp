@@ -1,11 +1,11 @@
 #include "phisi_vulkan.hpp"
+#include "GLFW/glfw3.h"
 #include "imgui_impl_glfw.h"
 #include "logger.hpp"
 #include "phisi_util.hpp"
 #include <chrono>
 #include <cstdint>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
 
 namespace phisi_app {
@@ -37,9 +37,9 @@ namespace phisi_app {
       flags, &app_info, 
       layers.size(), layers.data(), 
       extensions.size(), extensions.data());
-    m_instance = vk::createInstanceUnique(create_info);
+    m_instance = vk::createInstance(create_info);
     LOG_TRACE("VkInstance created.");
-    m_dldi = vk::detail::DispatchLoaderDynamic(m_instance.get(), vkGetInstanceProcAddr);
+    m_dldi = vk::detail::DispatchLoaderDynamic(m_instance, vkGetInstanceProcAddr);
     LOG_TRACE("DispatchLoaderDynamic created.");
   } 
   
@@ -72,54 +72,88 @@ namespace phisi_app {
       vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance |
       vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
       debugCallbackFunc);
-    m_debug_messenger = m_instance.get().createDebugUtilsMessengerEXTUnique(create_info, nullptr, m_dldi);
+    m_debug_messenger = m_instance.createDebugUtilsMessengerEXT(create_info, nullptr, m_dldi);
     LOG_TRACE("VkDebugUtilsMessenger created and set up.");
   }
   #endif
 
   void VulkanContext::createWindow() {
-      m_window.setInstance(m_instance.get());   
-      m_window.create(c_window_title);
+      m_window.createWindow(c_window_title);   
+      m_window.createSurface(m_instance);
   }
   
   void VulkanContext::chosePhysicalDevice() {
-    vk::PhysicalDevice device = m_instance.get().enumeratePhysicalDevices(m_dldi).front();
+    vk::PhysicalDevice device = m_instance.enumeratePhysicalDevices(m_dldi).front();
     vk::PhysicalDeviceProperties properties = device.getProperties();
     LOG_INFO("Chose device " << properties.deviceName << " as VkPhysicalDevice.");
     m_device_physical = std::move(device);
   }
 
-
-  void VulkanContext::createLogicalDevice() {
+  void VulkanContext::choseDeviceQueues() {
     std::vector properties = m_device_physical.getQueueFamilyProperties(m_dldi);
-    uint32_t queue_family_index = 0;
     for (size_t i = 0; i < properties.size(); i++) {
-      if(properties[i].queueCount > 0 && properties[i].queueFlags & vk::QueueFlagBits::eGraphics 
+      if(properties[i].queueCount > 0
+        && properties[i].queueFlags & vk::QueueFlagBits::eGraphics 
         && properties[i].queueFlags & vk::QueueFlagBits::eTransfer) {
-        queue_family_index = i;
+        m_graphics_queue_family_index = i;
+        break;
       }
-    }   
+    }    
+    for (size_t i = 0; i < properties.size(); i++) {
+      if(properties[i].queueCount > 0
+        && !(properties[i].queueFlags & vk::QueueFlagBits::eGraphics) 
+        && properties[i].queueFlags & vk::QueueFlagBits::eTransfer
+        && properties[i].queueFlags & vk::QueueFlagBits::eCompute) {
+        m_has_compute_queue = true;
+        m_compute_queue_family_index = i;
+        LOG_INFO("Found dedicated compute queue family with index " << i << ".");
+        break;
+      }
+    }
+  }
+
+
+  void VulkanContext::createLogicalDevice() {       
+    //queues
     float queue_priority = 1.0f;
-    vk::DeviceQueueCreateInfo queue_info(vk::DeviceQueueCreateFlags(), queue_family_index, 1, &queue_priority);
+    std::vector<vk::DeviceQueueCreateInfo> queue_infos;
     
+    vk::DeviceQueueCreateInfo graphics_queue_info(
+      vk::DeviceQueueCreateFlags(),
+      m_graphics_queue_family_index,
+      1, &queue_priority);
+    queue_infos.push_back(graphics_queue_info);
+    
+    if(m_has_compute_queue) {
+      vk::DeviceQueueCreateInfo compute_queue_info(
+        vk::DeviceQueueCreateFlags(),
+        m_compute_queue_family_index,
+        1, &queue_priority);
+      queue_infos.push_back(compute_queue_info);
+    }
+    
+    //extension
     std::vector<const char*> extensions; 
-    extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    
+    extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);   
     #ifdef __APPLE__
     extensions.push_back("VK_KHR_portability_subset");
     #endif
     
-    vk::DeviceCreateInfo create_info(vk::DeviceCreateFlags(), queue_info);
+    vk::DeviceCreateInfo create_info(vk::DeviceCreateFlags(), queue_infos.size(), queue_infos.data());
     create_info.setPEnabledExtensionNames(extensions);
     
-    m_device = m_device_physical.createDeviceUnique(create_info);  
-    m_queue_family_index = queue_family_index;
-    LOG_TRACE("VkDevice has been created and queue fmily " << queue_family_index << " has been selected.");
+    m_device = m_device_physical.createDevice(create_info);  
+    LOG_TRACE("VkDevice has been created and queue family " << m_graphics_queue_family_index << " has been selected as graphics queue.");
   }
 
-  void VulkanContext::createQueue() {
-    m_device.get().getQueue(m_queue_family_index, 0, &m_queue, m_dldi);
-    LOG_TRACE("Selected queue 0.");
+  void VulkanContext::getQueues() {
+    m_device.getQueue(m_graphics_queue_family_index, 0, &m_graphics_queue, m_dldi);
+    if(m_has_compute_queue) {
+      m_device.getQueue(m_compute_queue_family_index, 0, &m_compute_queue, m_dldi);
+    } else {
+      m_compute_queue = m_graphics_queue;
+      m_compute_queue_family_index = m_graphics_queue_family_index;
+    }
   }
 
   void VulkanContext::createDescriptorPool() {
@@ -129,14 +163,14 @@ namespace phisi_app {
       {vk::DescriptorType::eStorageImage, 5}
     };          
     vk::DescriptorPoolCreateInfo create_info(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 5, sizes.size(), sizes.data());
-    m_descriptor_pool = m_device.get().createDescriptorPoolUnique(create_info);
+    m_descriptor_pool = m_device.createDescriptorPool(create_info);
     LOG_TRACE("Created VkDescriptorPool.");
   }
 
   
   void VulkanContext::setupVulkanWindow() {
     m_window_data.Surface = m_window.m_surface;
-    if (!m_device_physical.getSurfaceSupportKHR(m_queue_family_index, m_window_data.Surface, m_dldi)) {
+    if (!m_device_physical.getSurfaceSupportKHR(m_graphics_queue_family_index, m_window_data.Surface, m_dldi)) {
       LOG_ERROR("Window surface has no Vulkan support");
       exit(-1);
     }
@@ -171,11 +205,11 @@ namespace phisi_app {
 
     std::pair dimensions = m_window.getFrameBufferSize();
     ImGui_ImplVulkanH_CreateOrResizeWindow(
-      m_instance.get(), 
+      m_instance, 
       m_device_physical, 
-      m_device.get(), 
+      m_device, 
       &m_window_data, 
-      m_queue_family_index, 
+      m_graphics_queue_family_index, 
       nullptr, 
       dimensions.first, 
       dimensions.second, 
@@ -191,19 +225,22 @@ namespace phisi_app {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+    io.IniFilename = "config/imgui.ini";
+    io.Fonts -> AddFontFromFileTTF("assets/Cousine-Regular.ttf", 18.0);
+
 
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForVulkan(m_window.m_window, true);
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = m_instance.get();
+    init_info.Instance = m_instance;
     init_info.PhysicalDevice = m_device_physical;
-    init_info.Device = m_device.get();
-    init_info.QueueFamily = m_queue_family_index;
-    init_info.Queue = m_queue;
+    init_info.Device = m_device;
+    init_info.QueueFamily = m_graphics_queue_family_index;
+    init_info.Queue = m_graphics_queue;
     init_info.PipelineCache = VK_NULL_HANDLE;
-    init_info.DescriptorPool = m_descriptor_pool.get();
+    init_info.DescriptorPool = m_descriptor_pool;
     init_info.RenderPass = m_window_data.RenderPass;
     init_info.Subpass = 0;
     init_info.MinImageCount = c_min_image_count;
@@ -221,7 +258,7 @@ namespace phisi_app {
     vk::Semaphore image_acquired_semaphore  = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].ImageAcquiredSemaphore;
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
 
-    vk::ResultValue<uint32_t> value = m_device.get().acquireNextImageKHR(m_window_data.Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, m_dldi);
+    vk::ResultValue<uint32_t> value = m_device.acquireNextImageKHR(m_window_data.Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, m_dldi);
     if (value.result == vk::Result::eErrorOutOfDateKHR || value.result == vk::Result::eSuboptimalKHR) {
         m_swapchain_rebuild = true;
         return;
@@ -234,23 +271,17 @@ namespace phisi_app {
         
     //wait for Frame to be presented
     vk::Fence fence = vk::Fence(frame_data.Fence);
-    checkVkResult(m_device.get().waitForFences({ fence }, true, UINT64_MAX, m_dldi));
-    m_device.get().resetFences({ fence }, m_dldi);
+    checkVkResult(m_device.waitForFences({ fence }, true, UINT64_MAX, m_dldi));
+    m_device.resetFences({ fence }, m_dldi);
     
     //reset command pool
-    m_device.get().resetCommandPool(frame_data.CommandPool); 
+    m_device.resetCommandPool(frame_data.CommandPool); 
     vk::CommandBuffer cmd_buffer = vk::CommandBuffer(frame_data.CommandBuffer);
     
     //begin command buffer
     vk::CommandBufferBeginInfo begin_info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
     cmd_buffer.begin(begin_info, m_dldi);
     
-    //TODO compute shader here
-    m_fluid_screen.compute(cmd_buffer, m_frame_time);
-
-    //copy buffer to image
-    //m_texture.copyStagingBufferToImage(com_buffer);
-   
     //begin render pass
     vk::RenderPassBeginInfo render_begin_info(
       m_window_data.RenderPass, 
@@ -268,7 +299,7 @@ namespace phisi_app {
 
     vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     vk::SubmitInfo submit_info(1, &image_acquired_semaphore, &wait_stage, 1, &cmd_buffer, 1, &render_complete_semaphore);
-    m_queue.submit({ submit_info }, fence, m_dldi);
+    m_graphics_queue.submit({ submit_info }, fence, m_dldi);
   }
 
   void VulkanContext::presentFrame() {
@@ -277,7 +308,7 @@ namespace phisi_app {
     vk::Semaphore render_complete_semaphore = m_window_data.FrameSemaphores[m_window_data.SemaphoreIndex].RenderCompleteSemaphore;
     vk::SwapchainKHR swapchain = m_window_data.Swapchain;
     vk::PresentInfoKHR present_info(1, &render_complete_semaphore, 1, &swapchain, &m_window_data.FrameIndex);
-    vk::Result result = m_queue.presentKHR(&present_info, m_dldi);
+    vk::Result result = m_graphics_queue.presentKHR(&present_info, m_dldi);
     if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR) {
       m_swapchain_rebuild = true;
       return;
@@ -296,13 +327,12 @@ namespace phisi_app {
       #endif
       createWindow();
       chosePhysicalDevice();
+      choseDeviceQueues();
       createLogicalDevice();
-      createQueue();
+      getQueues();
       createDescriptorPool();
       setupVulkanWindow();
       setupImGUI();
-      m_texture.initVk(m_device_physical, m_device.get(), m_dldi);
-      m_fluid_screen.initVk(m_device_physical, m_device.get(), m_descriptor_pool.get(), m_dldi, m_window_data.Frames[0].CommandPool, m_queue);
     } catch(const vk::Error& err) {
       LOG_ERROR(err.what());
     } catch(...) {
@@ -328,7 +358,7 @@ namespace phisi_app {
     std::pair fb_size = m_window.getFrameBufferSize();
     if (fb_size.first > 0 && fb_size.second > 0 && (m_swapchain_rebuild || m_window_data.Width != fb_size.first || m_window_data.Height != fb_size.second)) {
       ImGui_ImplVulkan_SetMinImageCount(c_min_image_count);
-      ImGui_ImplVulkanH_CreateOrResizeWindow(m_instance.get(), m_device_physical, m_device.get(), &m_window_data, m_queue_family_index, nullptr, fb_size.first, fb_size.second, c_min_image_count);
+      ImGui_ImplVulkanH_CreateOrResizeWindow(m_instance, m_device_physical, m_device, &m_window_data, m_graphics_queue_family_index, nullptr, fb_size.first, fb_size.second, c_min_image_count);
       m_window_data.FrameIndex = 0;
       m_swapchain_rebuild = false;
     }
@@ -364,12 +394,16 @@ namespace phisi_app {
   }
 
   void VulkanContext::destroy() {
-    m_device.get().waitIdle();
-    m_fluid_screen.destroy();
-    m_texture.destroyGpuOnly();
+    m_device.waitIdle();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    ImGui_ImplVulkanH_DestroyWindow(m_instance.get(), m_device.get(), &m_window_data, nullptr);
+    ImGui_ImplVulkanH_DestroyWindow(m_instance, m_device, &m_window_data, nullptr);
+    m_device.destroyDescriptorPool(m_descriptor_pool);
+    m_device.destroy();
     m_window.destory();
+    #ifdef BUILD_DEBUG
+    m_instance.destroyDebugUtilsMessengerEXT(m_debug_messenger, nullptr, m_dldi);
+    #endif
+    m_instance.destroy();
   }
 }

@@ -8,21 +8,16 @@
 namespace phisi_app {
 
   class PhisiWindow {
-    vk::Instance m_instance;
-    
-    void createWindow(std::string title);
-    void createSurface();
-    
   public:
     GLFWwindow* m_window;
     vk::SurfaceKHR m_surface;
     
-    PhisiWindow(const PhisiWindow&) = delete;
-    PhisiWindow& operator=(const PhisiWindow&) = delete;
-    PhisiWindow() {}
+    PhisiWindow() = default;
+    
+    void createWindow(std::string title);
+    void createSurface(vk::Instance instance);
+    
     static void initGlfw();
-    void setInstance(vk::Instance instance);
-    void create(std::string title);
     std::pair<int, int> getFrameBufferSize();
     bool shouldClose();
     bool minimized();
