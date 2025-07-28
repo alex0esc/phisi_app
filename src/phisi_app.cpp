@@ -54,6 +54,23 @@ namespace phisi_app {
     m_fluid_screen.simulate();
   }
   
+  //TODO test funktion
+  void updateRainbowColor(float color[3], float phase_speed) {
+    static float phase = 0.0f;
+     // Geschwindigkeit des Farbwechsels
+    
+    // Direkte RGB Berechnung mit Sinus-Wellen
+    color[0] = (sin(phase) + 1.0f) * 0.5f;         // Roter Kanal
+    color[1] = (sin(phase + 2.094f) + 1.0f) * 0.5f; // Grüner Kanal (120° Phasenverschiebung)
+    color[2] = (sin(phase + 4.189f) + 1.0f) * 0.5f; // Blauer Kanal (240° Phasenverschiebung)
+    
+    // Phase für nächsten Aufruf updaten
+    phase += phase_speed;
+    if (phase >= 6.283f) { // 2 * PI
+        phase = 0.0f;
+    }
+  }
+  
   void Application::imGuiLayoutSetup() {
     //general settings
     ImGui::Begin("General");
@@ -72,11 +89,20 @@ namespace phisi_app {
     static float f_value = m_fluid_screen.m_push_constant.saturation;
     ImGui::SliderFloat("Saturation", &f_value, 0.0, 10.0);
     m_fluid_screen.m_push_constant.saturation = std::pow(f_value, 2);
+    
+    static float rainbow_speed = 0.0;
+    ImGui::SliderFloat("Rainbow Speed", &rainbow_speed, 0.0, 5.0);
+    if(rainbow_speed > 0) {
+      updateRainbowColor(m_fluid_screen.m_push_constant.stream_color, m_vk_context.m_frame_time * rainbow_speed);
+    } else
+      ImGui::ColorEdit3("Stream Color", m_fluid_screen.m_push_constant.stream_color);
+    ImGui::SliderFloat("Stream Velocity", &m_fluid_screen.m_push_constant.stream_velocity, 0, 2000);
     ImGui::End();
 
     //cursor action
     ImGui::Begin("Cursor");
     ImGui::ColorEdit3("Pencil color", m_pencil_color);
+    
     ImGui::SliderFloat("Pencil size", &m_pencil_radius, 1.0, 200);
     ImGui::SliderFloat("Velocity Strength", &m_vel_strength, -100.0, 100.0);
     if(ImGui::RadioButton("Color Mode", m_pencil_mode == 0))

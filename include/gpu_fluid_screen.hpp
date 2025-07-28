@@ -15,7 +15,7 @@ namespace phisi_app {
     uint32_t divergence_state = true;
     uint32_t rk_steps = 10;
     float gravity = 9.81;
-    float overrelaxation = 1.9; 
+    float overrelaxation = 1.975; 
     float frame_time = 0.01;
     float pressure_constant = 0;
     float saturation = 1.0;
@@ -26,6 +26,10 @@ namespace phisi_app {
     float pencil_x = 0;
     float pencil_y = 0;
     float pencil_data[3];
+
+    //stream
+    float stream_color[3] = {1.0, 0.0, 0.0};
+    float stream_velocity = 100;
   };
   
 

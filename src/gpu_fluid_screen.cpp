@@ -30,8 +30,10 @@ namespace phisi_app {
     m_push_constant.width = m_width;
     m_push_constant.height = m_height;    
 
+    
     vk::FenceCreateInfo fence_info(vk::FenceCreateFlagBits::eSignaled);
     m_fence = m_context->m_device.createFence(fence_info, nullptr, m_context->m_dldi);
+    
     
     vk::CommandPoolCreateInfo cmd_pool_info(vk::CommandPoolCreateFlagBits::eTransient, m_context->m_compute_queue_family_index);
     m_cmd_pool = m_context->m_device.createCommandPool(cmd_pool_info, nullptr, m_context->m_dldi);

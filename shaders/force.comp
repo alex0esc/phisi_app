@@ -26,6 +26,9 @@ layout(push_constant) uniform push_constants {
     float pencil_radius;
     vec2 pencil_pos;
     float pencil_data[3];
+    
+    float stream_color[3];
+    float stream_velocity;
 };
 layout(std430, binding = 0) buffer storage_buffer {
     float[] fluid_buffer;
@@ -60,11 +63,11 @@ void main() {
     }
     
     //TODO fluid flowing in or out
-    if(y == 1 && x > width * 0.48 && x < width * 0.52) {
-        COLOR(index * 3) = 1.0;    
-        COLOR(index * 3 + 1) = 0.0;
-        COLOR(index * 3 + 2) = 1.0;
-        VEL_V(index) = 100;
+    if(y == height - 2 && x > width * 0.48 && x < width * 0.52) {
+        COLOR(index * 3) = stream_color[0];    
+        COLOR(index * 3 + 1) = stream_color[1];
+        COLOR(index * 3 + 2) = stream_color[2];
+        VEL_V(index + width) = -stream_velocity;
     }    
     
     

@@ -1,6 +1,7 @@
 .cache/*
 .ignore
 build/*
+config/*
 run_build.bat
 run_build_release.bat
 run_build.sh
