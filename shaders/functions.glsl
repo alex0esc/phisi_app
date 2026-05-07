@@ -2,8 +2,8 @@
 #define INTERPOLATE(cell_loc, indices, weights, multiplayer) \
     {\
     vec2 cell_loc_cpy = cell_loc; \
-    uint x_traced = uint(cell_loc_cpy.x); \
-    uint y_traced = uint(cell_loc_cpy.y); \
+    uint x_traced = clamp(uint(cell_loc_cpy.x), 0u, width - 2u); \
+    uint y_traced = clamp(uint(cell_loc_cpy.y), 0u, height - 2u); \
     float x_inner = cell_loc_cpy.x - float(x_traced); \
     float y_inner = cell_loc_cpy.y - float(y_traced); \
     indices[0] = (y_traced * width + x_traced); \
