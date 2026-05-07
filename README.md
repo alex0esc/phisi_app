@@ -29,3 +29,5 @@ ninja -C build/
 ```bash
 .\build\bin\release\phisi_app.exe 0 1
 ```
+
+![Screenshot](assets/preview.png)
