@@ -49,16 +49,21 @@ void reflect_in_box(uint width, uint height, vec2 cell_vec, inout vec2 cell_loc)
         }
         if(smallest_index == -1) {   
             cell_loc += cell_vec;
+            cell_loc = clamp(cell_loc, vec2(1.0 + 1e-4), vec2(float(width) - 2.0 - 1e-4, float(height) - 2.0 - 1e-4));
             break;
         }
-        cell_loc += cell_vec * smallest_value * 0.9999;        
+
+        cell_loc += cell_vec * smallest_value;        
         if (smallest_index == 0 || smallest_index == 2) {  
             cell_vec = reflect_custom(cell_vec, vec2(1.0, 0.0)) * (1.0 - smallest_value);
         } else if (smallest_index == 1 || smallest_index == 3) {
             cell_vec = reflect_custom(cell_vec, vec2(0.0, 1.0)) * (1.0 - smallest_value);
         }
-        if(count++ > max_bounces) 
+        if(count++ > max_bounces) { 
+            cell_loc = clamp(cell_loc, vec2(1.0 + 1e-4), vec2(float(width) - 2.0 - 1e-4, float(height) - 2.0 - 1e-4));
             break;
+        }
+
     }   
 }
 

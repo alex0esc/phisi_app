@@ -68,15 +68,15 @@ set(COMPILED_SHADERS)
 add_custom_target(ShaderCode ALL DEPENDS ${SHADERS})
 
 foreach(SHADER ${SHADERS})    
-get_filename_component(FILE_NAME ${SHADER} NAME_WE)
-set(OUTPUT_PATH ${SHADER_DIR}/${FILE_NAME}.spv) 
-
-add_custom_command(
-    TARGET ShaderCode
-    PRE_BUILD
-    COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH})
+    get_filename_component(FILE_NAME ${SHADER} NAME_WE)
+    set(OUTPUT_PATH ${SHADER_DIR}/${FILE_NAME}.spv) 
     
-list(APPEND COMPILED_SHADERS ${OUTPUT_PATH})
+    add_custom_command(
+        OUTPUT ${OUTPUT_PATH}
+        COMMAND glslangValidator -V ${SHADER} -o ${OUTPUT_PATH}
+        DEPENDS ${SHADER})
+    
+    list(APPEND COMPILED_SHADERS ${OUTPUT_PATH})
 endforeach()
 
 add_custom_target(Shaders ALL DEPENDS ${COMPILED_SHADERS})
