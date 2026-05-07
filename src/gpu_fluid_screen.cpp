@@ -14,6 +14,8 @@ namespace phisi_app {
     return device.createShaderModule(module_info, nullptr, dldi);
   }
 
+
+
   vk::Pipeline create_pipeline(vk::Device device, vk::detail::DispatchLoaderDynamic dldi, vk::ShaderModule module, vk::PipelineLayout layout) {
     vk::PipelineShaderStageCreateInfo stage_info(
       vk::PipelineShaderStageCreateFlags(),
@@ -24,12 +26,13 @@ namespace phisi_app {
     return phisi_app::checkVkResult(device.createComputePipelines(VK_NULL_HANDLE, pipeline_infos, nullptr, dldi)).front();
   }
   
+
+
   void GpuFluidScreen::allocate() {
     m_width = m_texture->m_width + 2;
     m_height = m_texture->m_height + 2;
     m_push_constant.width = m_width;
     m_push_constant.height = m_height;    
-
     
     vk::FenceCreateInfo fence_info(vk::FenceCreateFlagBits::eSignaled);
     m_fence = m_context->m_device.createFence(fence_info, nullptr, m_context->m_dldi);
@@ -92,6 +95,7 @@ namespace phisi_app {
   }
 
 
+
   void GpuFluidScreen::initBuffer() {
     m_memory.allocateStaging();    
     m_memory.map();
@@ -145,14 +149,17 @@ namespace phisi_app {
     LOG_TRACE("Fluid buffer has been initialized.");
   }
 
+
   
   void GpuFluidScreen::simulate() {
+    if(m_run_simulation == false)
+      return;
+
     checkVkResult(m_context->m_device.waitForFences(1, &m_fence, true, UINT64_MAX, m_context->m_dldi));
     checkVkResult(m_context->m_device.resetFences(1, &m_fence, m_context->m_dldi));
     m_context->m_device.resetCommandPool(m_cmd_pool);
 
-    if(m_run_simulation == false)
-      return;
+    
     
     vk::CommandBufferAllocateInfo alc_info(m_cmd_pool, vk::CommandBufferLevel::ePrimary, 1);
     vk::CommandBuffer cmd_buffer = m_context->m_device.allocateCommandBuffers(alc_info, m_context->m_dldi).front();
@@ -168,6 +175,8 @@ namespace phisi_app {
     vk::SubmitInfo submit_info(0, nullptr, &stage, 1, &cmd_buffer);
     checkVkResult(m_context->m_compute_queue.submit(1, &submit_info, m_fence, m_context->m_dldi));
   }
+
+
 
   void GpuFluidScreen::compute(vk::CommandBuffer cmd_buffer) {     
     m_push_constant.buffer_state = !m_push_constant.buffer_state;

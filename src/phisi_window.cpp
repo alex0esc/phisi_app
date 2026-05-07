@@ -41,7 +41,7 @@ namespace phisi_app {
     glfwWindowHint(GLFW_GREEN_BITS, vid_mode->greenBits);
     glfwWindowHint(GLFW_BLUE_BITS, vid_mode->blueBits);
     glfwWindowHint(GLFW_REFRESH_RATE, vid_mode->refreshRate);
-    m_window = glfwCreateWindow(vid_mode->width, vid_mode->height, title.c_str(), nullptr, nullptr);
+    m_window = glfwCreateWindow(vid_mode->width, vid_mode->height, title.c_str(), monitors[screen_index], nullptr);
 
     //set window pos
     int x_pos, y_pos;
